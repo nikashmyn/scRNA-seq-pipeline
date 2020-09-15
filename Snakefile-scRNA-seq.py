@@ -38,7 +38,7 @@ rule generate_genome_indexes:
         in_fasta = config["reference"],
         in_gtf = config["reference_gtf"]
     output:
-        ref_dir = "/pellmanlab/stam_niko/STAR/genome/"
+        ref_dir = "/pellmanlab/nikos/STAR/genome/"
     params:
         runMode = "genomeGenerate",
         overhang = config["readlength"] - 1

@@ -1,0 +1,9 @@
+*
+
+!.gitignore
+!Snakefile-scRNA-seq.py
+!snakemake.sh
+!config-scRNA-seq.yaml
+!scripts/
+!scripts/*.py
+!scripts/*.R
