@@ -3,9 +3,18 @@
 ##################################################
 
 ### Reference Genomes ###
+### TO DO Redo all this with the information 100% from same release of ensemble genome ### May have used 90 or 92 ###
 reference: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+reference_unzip: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.dna.primary_assembly.fa
 reference_gtf: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.83.gtf.gz
+reference_gtf_unzip: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.83.gtf
 readlength: 100
+
+### Known variation sites from ensemble
+#ftp://ftp.ensembl.org/pub/release-92/variation/vcf/homo_sapiens/homo_sapiens_incl_consequences.vcf.gz
+#ref_var: /pellmanlab/stam_niko/refgenomes/vars/homo_sapiens_incl_consequences.vcf.gz
+#ftp://ftp.ensembl.org/pub/release-92/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz.csi
+ref_var: /pellmanlab/stam_niko/refgenomes/vars_rel98/1000GENOMES-phase_3.vcf.gz
 
 ### Reference Bulks ###
 normal: /singlecellcenter/RPE-1/bamlinks/GRCh38/RPE_bulk.bam
