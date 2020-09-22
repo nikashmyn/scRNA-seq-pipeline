@@ -151,10 +151,11 @@ rule base_recal:
         ref = config["reference_unzip"], #Reference sequence file  Required.
         KS = config["ref_var"] #One or more databases of known polymorphic sites used to exclude regions around known polymorphisms from analysis.  This argument must be specified at least once. Required.
     output:
-        bam_out = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.recal.out.bam"  #The output recalibration table file to create  Required.
+        recal_out = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.recal_table.txt",  #The output recalibration table file to create  Required.
+        bam_out  = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.recal.out.bam",
     params:
-        "--create-output-bam-index True",
-        "--read-filter PairedReadFilter"
+        recal = "--read-filter PairedReadFilter",
+        applybqsr = "--create-output-bam-index True"
     shell:
-        "gatk BaseRecalibrator --input {input.bam_in} --reference {input.ref} --known-sites {input.KS} {params} --output {output.bam_out} "
-
+        "gatk BaseRecalibrator --input {input.bam_in} --reference {input.ref} --known-sites {input.KS} {params.recal} --output {output.recal_out} "
+        "&& gatk ApplyBQSR --input {input.bam_in} --bqsr-recal-file {output.recal_out} --reference {input.ref} {params.applybqsr} --output {output.bam_out} "
