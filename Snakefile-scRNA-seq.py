@@ -153,35 +153,13 @@ rule base_recal:
         ref = config["ref_unzip_wdict"], 
         KS = config["ref_var"] #Known polymorphic sites used to exclude regions around known polymorphisms from analysis.
     output:
-<<<<<<< HEAD
         recal_out = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.recal_table.txt",  #The output recalibration table file to create  Required.
         bam_out  = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.recal.out.bam",
-=======
         recal_out = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.recal_table.txt",  #The output recalibration table file to create.
         bam_out  = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.recal.out.bam", #The BAM to build from out table ^
->>>>>>> b5356e03f9f06ad8f29bbf03423f9004bcd54b67
     params:
         recal = "--read-filter PairedReadFilter",
         applybqsr = "--create-output-bam-index True"
     shell:
         "gatk BaseRecalibrator --input {input.bam_in} --reference {input.ref} --known-sites {input.KS} {params.recal} --output {output.recal_out} "
         "&& gatk ApplyBQSR --input {input.bam_in} --bqsr-recal-file {output.recal_out} --reference {input.ref} {params.applybqsr} --output {output.bam_out} "
-<<<<<<< HEAD
-=======
-
-#BAM input to RSEM differential expression 
-### TO DO ### Add BAM input options
-#rule rsem_calc_expr:
-#    input:
-#        R1 = f"/pellmanlab/stam_niko/data/ERR523111/{samples}_1.fastq",
-#        R2 = f"/pellmanlab/stam_niko/data/ERR523111/{samples}_2.fastq"
-#    params:
-#        ref_name = "EnsembleGenome98",
-#        sample_name = f"{samples}",
-#        options = "--star --calc-pme --calc-ci --output-genome-bam ",
-#        num_thrd = "--num-threads 4",
-#        seed = "--seed 12 "
-#    shell:
-#        "rsem-calculate-expression {params.options} {params.num_thrd} {params.seed} "
-#        "--paired-end {input.R1} {input.R2} {params.ref_name} {params.sample_name} "
->>>>>>> b5356e03f9f06ad8f29bbf03423f9004bcd54b67
