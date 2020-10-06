@@ -2,19 +2,20 @@
 ### Configfile for Snakefile-scRNA-seq in YAML ###
 ##################################################
 
-### Reference Genomes ###
-### TO DO Redo all this with the information 100% from same release of ensemble genome ### May have used 90 or 92 ###
-reference: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-reference_unzip: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.dna.primary_assembly.fa
-reference_gtf: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.83.gtf.gz
-reference_gtf_unzip: /pellmanlab/stam_niko/refgenomes/Homo_sapiens.GRCh38.83.gtf
+### Reference Genomes ### 
+#reference: /pellmanlab/stam_niko/refgenomes/rel98/genome/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+reference_unzip: /pellmanlab/stam_niko/refgenomes/Gencode/v25/GRCh38.primary_assembly.genome.fa
+ref_unzip_wdict: /pellmanlab/stam_niko/refgenomes/rel98/genome/with_dict/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+#reference_gtf: /pellmanlab/stam_niko/refgenomes/rel98/genome/Homo_sapiens.GRCh38.98.gtf.gz
+reference_gtf_unzip: /pellmanlab/stam_niko/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf
+ref_transcriptome: /pellmanlab/stam_niko/refgenomes/rel98/transcriptome/Homo_sapiens.GRCh38.cdna.all.fa
 readlength: 100
 
 ### Known variation sites from ensemble
 #ftp://ftp.ensembl.org/pub/release-92/variation/vcf/homo_sapiens/homo_sapiens_incl_consequences.vcf.gz
 #ref_var: /pellmanlab/stam_niko/refgenomes/vars/homo_sapiens_incl_consequences.vcf.gz
 #ftp://ftp.ensembl.org/pub/release-92/variation/vcf/homo_sapiens/1000GENOMES-phase_3.vcf.gz.csi
-ref_var: /pellmanlab/stam_niko/refgenomes/vars_rel98/1000GENOMES-phase_3.vcf.gz
+ref_var: /pellmanlab/stam_niko/refgenomes/rel98/vars_rel98/1000GENOMES-phase_3.vcf.gz
 
 ### Reference Bulks ###
 normal: /singlecellcenter/RPE-1/bamlinks/GRCh38/RPE_bulk.bam
@@ -26,7 +27,7 @@ normal_name: RPE-Bulk2 #RPE1-bulk
 intervals: /pellmanlab/logan/data/references/hg38/hg38.10kb_bins.bed
 
 ### Samples Files ###
-samples: samples_all.tsv
+samples: SIS1025f_samples.txt
 
 ### Picard Options ###
 # for configuring picard "max_records_in_ram", determines memory usage 
