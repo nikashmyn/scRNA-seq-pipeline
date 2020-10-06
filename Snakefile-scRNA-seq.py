@@ -22,23 +22,23 @@ prac_samples = list(["ERR523111"])
 ########################
 rule align:
     input:
-        expand("/pellmanlab/stam_niko/data/bam/ERR523111/.{samples}_mockfile.txt", samples=prac_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/ERR523111/.{samples}_mockfile.txt", samples=prac_samples)
 
 rule mrk_dups:
     input:
-        expand("/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.deduped.out.bam", samples=prac_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/ERR523111/mark_dups/{samples}.Aligned.toTranscriptome.deduped.out.bam", samples=prac_samples)
 
 rule re_sort:
     input:
-        expand("/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.sorted.deduped.out.bam", samples=prac_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/ERR523111/mark_dups/{samples}.Aligned.toTranscriptome.sorted.deduped.out.bam", samples=prac_samples)
 
-rule split_r:
+rule rsem:
     input:
-        expand("/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.out.bam", samples=prac_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/.{samples}_mockfile.rsem.txt", samples=prac_samples)
 
-rule recal:
+rule calc_expr:
     input:
-        expand("/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.recal.out.bam", samples=prac_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/.{samples}_mockfile.rsem_calc.txt", samples=prac_samples)
 
 #rule genotype:
 #    input:
@@ -71,29 +71,30 @@ rule STAR_alignment:
         R2 = "/pellmanlab/stam_niko/data/ERR523111/{samples}_2.fastq", #.gz
         ref_dir = "/pellmanlab/stam_niko/STAR/genome/"
     output:
-        mock = "/pellmanlab/stam_niko/data/bam/ERR523111/.{samples}_mockfile.txt"
+        mock = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/.{samples}_mockfile.txt"
     params:
-        names = "/pellmanlab/stam_niko/data/bam/ERR523111/raw_aligned_bams/{samples}.",
+        names = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/{samples}.",
         runMode = "alignReads",
-        outstyle = "BAM Unsorted", 
+        outstyle = "BAM Unsorted",
         unmapped = "Within KeepPairs",
         twopass = "Basic",
-        tags = "NH HI AS NM MD"
+        tags = "NH HI AS NM MD",
+        quant_mode = "TranscriptomeSAM"
         #readcmd = "zcat"
     shell:
         "STAR --genomeDir {input.ref_dir} --readFilesIn {input.R1} {input.R2} "
-        "--runMode {params.runMode} --twopassMode {params.twopass} --outFileNamePrefix {params.names} " #--readFilesCommand {params.readcmd} "
-        "--outSAMunmapped {params.unmapped} --outSAMtype {params.outstyle} --outSAMattributes {params.tags} " # For RSEM compatability #like --alignbytype endtoend 
+        "--runMode {params.runMode} --twopassMode {params.twopass} --outFileNamePrefix {params.names} --quantMode {params.quant_mode} " #--readFilesCommand {params.readcmd} "
+        "--outSAMunmapped {params.unmapped} --outSAMtype {params.outstyle} --outSAMattributes {params.tags} " # For RSEM compatability
         "&& touch {output.mock} " #For snakemake step tracing
 
-#add read group information and calc tags
+#add read group information
 rule AddOrReplaceRG:
     input:
-        mock = "/pellmanlab/stam_niko/data/bam/ERR523111/.{samples}_mockfile.txt"
+        mock = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/.{samples}_mockfile.txt"
     output:
-        bam_out = "/pellmanlab/stam_niko/data/bam/ERR523111/raw_aligned_bams/{samples}.Aligned.RG.out.bam",
+        bam_out = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/{samples}.Aligned.toTranscriptome.RG.out.bam",
     params:
-        bam_in = "/pellmanlab/stam_niko/data/bam/ERR523111/raw_aligned_bams/{samples}.Aligned.out.bam",
+        bam_in = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/{samples}.Aligned.toTranscriptome.out.bam",
         rginfo = "--SORT_ORDER queryname --RGID {samples} --RGLB {samples} --RGPL illumina --RGPU {samples} --RGSM {samples} " #Needs to be revisited on real data
     shell:
         "picard AddOrReplaceReadGroups -I {params.bam_in} -O {output.bam_out} {params.rginfo} "
@@ -101,10 +102,10 @@ rule AddOrReplaceRG:
 #remove duplicates step        
 rule mark_duplicates:
     input:
-        bam_in = "/pellmanlab/stam_niko/data/bam/ERR523111/raw_aligned_bams/{samples}.Aligned.RG.out.bam"
+        bam_in = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/{samples}.Aligned.toTranscriptome.RG.out.bam"
     output:
-        metrics = "/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.metrics.txt", #File to write duplication metrics.
-        bam_out = "/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.deduped.out.bam"
+        metrics = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/mark_dups/{samples}.toTranscriptome.metrics.txt", 
+        bam_out = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/mark_dups/{samples}.Aligned.toTranscriptome.deduped.out.bam" 
     params:
         options = f"--CREATE_INDEX true --REMOVE_DUPLICATES true --ASSUME_SORT_ORDER queryname --TMP_DIR {config['tmp_dir']} " 
     shell:
@@ -113,53 +114,50 @@ rule mark_duplicates:
 #sort bam step
 rule sort_sam:
     input:
-        bam_in = "/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.deduped.out.bam"
+        bam_in = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/mark_dups/{samples}.Aligned.toTranscriptome.deduped.out.bam" #Input BAM or SAM file to sort.  Required
     output:
-        bam_out =  "/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.sorted.deduped.out.bam" 
+        bam_out =  "/pellmanlab/stam_niko/data/processed_bam/ERR523111/mark_dups/{samples}.Aligned.toTranscriptome.sorted.deduped.out.bam" #Sorted BAM or SAM output file.  Required.
     params:
-        SO = "coordinate", #Downstream tools need coord sorted
+        SO = "coordinate", #Sorts primarily according to the SEQ and POS fields of the record.
         options = "--CREATE_INDEX true"
     shell:
         "picard SortSam --INPUT {input.bam_in} {params.options} --OUTPUT {output.bam_out} --SORT_ORDER {params.SO} " 
-        
-#calc tags
-rule calctags:
+       
+#Prep bam for RSEM post-processing
+rule prep_rsem:
     input:
-        bam_in = "/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.sorted.deduped.out.bam"
+        bam_in = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/mark_dups/{samples}.Aligned.toTranscriptome.sorted.deduped.out.bam",
+        fasta = config["reference_unzip"],
+        gtf = config["reference_gtf_unzip"]
     output:
-        bam_out = "/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.sorted.deduped.tagged.out.bam"
+        mock = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/.{samples}_mockfile.rsem.txt",
     params:
-        ref = config["reference_unzip"]
+        bam_out = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/{samples}.Aligned.toTranscriptome.sorted.deduped.rsem.out",
+        transcriptomename = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/rsem_ref/Ensembl98",
+        transcriptomedir = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/rsem_ref/"
+    threads: 4
     shell:
-        "picard SetNmMdAndUqTags -I {input.bam_in} -O {output.bam_out} --REFERENCE_SEQUENCE {params.ref} "
+        "convert-sam-for-rsem {input.bam_in} {params.bam_out} " #correct bam format for rsem
+        "&& mkdir -p {params.transcriptomedir} "
+        "&& rsem-prepare-reference -gtf {input.gtf} -p {threads} {input.fasta} {params.transcriptomename} " #needed rsem ref genome
+        "&& touch {output.mock} " #For snakemake step tracing
 
-# Split Reads with N in Cigar
-rule splitncigarreads:
+#Run RSEM calculations
+rule rsem_calc_expr:
     input:
-        bam_in =  "/pellmanlab/stam_niko/data/bam/ERR523111/mark_dups/{samples}.Aligned.sorted.deduped.tagged.out.bam", 
-        ref = config["ref_unzip_wdict"] 
+        mock = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/.{samples}_mockfile.rsem.txt"
     output:
-        bam_out = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.out.bam"
+        mock = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/.{samples}_mockfile.rsem_calc.txt"
     params:
-        "--create-output-bam-index true"
-        #f"--tmp-dir {config['tmp_dir']} "
+        bam_in = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/{samples}.Aligned.toTranscriptome.sorted.deduped.rsem.out.bam",
+        ref_name = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/rsem_ref/Ensembl98",
+        sample_name = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/outputs/{samples}",
+        sample_dir = "/pellmanlab/stam_niko/data/processed_bam/ERR523111/RSEM/outputs/",
+        options = "--paired-end --calc-pme",# --calc-ci --output-genome-bam ", calc-ci giving error maybe bug in version
+        num_thrd = "--num-threads 8"
     shell:
-        "gatk SplitNCigarReads --input {input.bam_in} --reference {input.ref} {params} --output {output.bam_out} "
-        
-# Base Quality Score Recalibration (BQSR) -- Generates recalibration table based on various user-specified covariates (such as read group, reported quality score, machine cycle, and nucleotide context)
-rule base_recal:
-    input:
-        bam_in = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.out.bam", 
-        ref = config["ref_unzip_wdict"], 
-        KS = config["ref_var"] #Known polymorphic sites used to exclude regions around known polymorphisms from analysis.
-    output:
-        recal_out = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.recal_table.txt",  #The output recalibration table file to create  Required.
-        bam_out  = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.recal.out.bam",
-        recal_out = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.recal_table.txt",  #The output recalibration table file to create.
-        bam_out  = "/pellmanlab/stam_niko/data/bam/ERR523111/split_reads/{samples}.Aligned.sorted.deduped.split_r.recal.out.bam", #The BAM to build from out table ^
-    params:
-        recal = "--read-filter PairedReadFilter",
-        applybqsr = "--create-output-bam-index True"
-    shell:
-        "gatk BaseRecalibrator --input {input.bam_in} --reference {input.ref} --known-sites {input.KS} {params.recal} --output {output.recal_out} "
-        "&& gatk ApplyBQSR --input {input.bam_in} --bqsr-recal-file {output.recal_out} --reference {input.ref} {params.applybqsr} --output {output.bam_out} "
+        "mkdir -p {params.sample_dir} "
+        "&& rsem-calculate-expression {params.options} --alignments {params.num_thrd} "
+        "{params.bam_in} {params.ref_name} {params.sample_name} "
+        "&& touch {output.mock} "
+
