@@ -2,7 +2,7 @@
 
 !.gitignore
 !Snakefile-scRNA-seq.py
-!Snakefile-scRNA-seq_dev_realdata2.py
+!Snakefile-scRNA-seq-Stamatis.py
 !snakemake.sh
 !config-scRNA-seq.yaml
 !scripts/
