@@ -17,6 +17,9 @@ import snakemake
 #Practice data
 prac_samples = list(["ERR523111"])
 real_samples = list(["SN218_Run1065_Lane1_190717_Nextera_1A10_L_166350_BCStamatis_Nextera384_190718_P1_A10.demult.bam.qsort.bam"])
+chrom_intervals = [f'chr{i}' for i in range(1, 23)]
+alt_intervals = ['chrX', 'chrY', 'chrM']
+chrom_intervals.extend(alt_intervals)
 
 ########################
 ### INPUT-ONLY RULES ###
@@ -185,9 +188,10 @@ rule splitncigarreads:
     output:
         bam_out = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.toTranscriptome.split_r.out.bam" 
     params:
-        "--create-output-bam-index true"
+        options = "--create-output-bam-index true -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS"
+        intervals = chrom_intervals
     shell:
-        "gatk SplitNCigarReads --input {input.bam_in} --reference {input.ref} {params} --output {output.bam_out} "
+        "gatk SplitNCigarReads --input {input.bam_in} --reference {input.ref} {params.options} -L {params.intervals} --output {output.bam_out} "
 
 rule haplotype_variant_calling:
     input:
