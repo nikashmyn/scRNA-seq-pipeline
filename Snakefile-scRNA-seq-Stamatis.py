@@ -82,8 +82,8 @@ rule STAR_alignment:
         R2 = "/singlecellcenter/etai/ExperimentsData/Stamatis/SIS1025f/fastqs/{samples}.R2.fastq.gz",
         ref_dir =  "/pellmanlab/stam_niko/refgenomes/STAR/Gencode.v25/gencode.v25",
         gtf = "/pellmanlab/stam_niko/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf"
-    output:
-        mock = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/.{samples}_mockfile.txt"
+    output: #get rid of mockfile by putting one of the output files here and keeping names where it is.
+        mock = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/.{samples}_mockfile.txt" 
     params:
         names = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/{samples}."
     threads: config["MAX_THREADS"]
