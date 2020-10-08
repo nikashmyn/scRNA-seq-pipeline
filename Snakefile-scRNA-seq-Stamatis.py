@@ -17,8 +17,8 @@ import snakemake
 #Practice data
 prac_samples = list(["ERR523111"])
 real_samples = list(["SN218_Run1065_Lane1_190717_Nextera_1A10_L_166350_BCStamatis_Nextera384_190718_P1_A10.demult.bam.qsort.bam"])
-chrom_intervals = [f'chr{i}' for i in range(1, 23)]
-alt_intervals = ['chrX', 'chrY', 'chrM']
+chrom_intervals = [f'-L chr{i}' for i in range(1, 23)]
+alt_intervals = ['-L chrX', '-L chrY', '-L chrM']
 chrom_intervals.extend(alt_intervals)
 
 ########################
@@ -122,8 +122,8 @@ rule STAR_alignment:
         --chimJunctionOverhangMin 15 \
         --outSAMattributes NH HI AS nM NM MD \
         --outSAMattrRGline ID:rg1 SM:sm1 \
-        && touch {output.mock}
-        """
+        && touch {output.mock} 
+        """ #IDEA: instead of touching mockfile, && index and use the index for the snakemake file tracing
         
 #MARK DUPLICATES IS CONTRAINDICATED BECAUSE DUPLICATION RATE WAS <5%.
        
@@ -183,27 +183,27 @@ rule collect_mult_metrics:
 
 rule splitncigarreads:
     input:
-        bam_in =  "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/{samples}.Aligned.toTranscriptome.out.bam", 
+        bam_in =  "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/{samples}.Aligned.sortedByCoord.out.bam", #FIX input bam !!!
         ref = config["ref_unzip_wdict"] 
     output:
-        bam_out = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.toTranscriptome.split_r.out.bam" 
+        bam_out = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam" 
     params:
-        options = "--create-output-bam-index true -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS"
+        options = "--create-output-bam-index true", # --read-filter ReassignOneMappingQuality", # -RMQF 255 -RMQT 60",
         intervals = chrom_intervals
     shell:
-        "gatk SplitNCigarReads --input {input.bam_in} --reference {input.ref} {params.options} -L {params.intervals} --output {output.bam_out} "
+        "samtools index {input.bam_in} "
+        "&& gatk SplitNCigarReads {params.options} {params.intervals} --input {input.bam_in} --reference {input.ref} --output {output.bam_out} "
 
 rule haplotype_variant_calling:
     input:
-        bam_in = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.toTranscriptome.split_r.out.bam", 
+        bam_in = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam", 
         alleles = config["alleles"],
-        fasta = config["reference_unzip"]
+        fasta = config["ref_unzip_wdict"]
     output:
         vcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.vcf"
     params:
-        rfs = "--output_mode EMIT_ALL_SITES --standard_min_confidence_threshold_for_calling 0 -rf DuplicateRead -rf FailsVendorQualityCheck -rf NotPrimaryAlignment -rf BadMate -rf MappingQualityUnavailable -rf UnmappedRead -rf BadCigar",
-        options = "--genotyping_mode GENOTYPE_GIVEN_ALLELES --analysis_type HaplotypeCaller --min_mapping_quality_score 30"
+        options = "--output-mode EMIT_ALL_ACTIVE_SITES --standard-min-confidence-threshold-for-calling 0 --minimum-mapping-quality 30"
     threads: config["MAX_THREADS"]
     shell:
-        "gatk --reference_sequence {input.fasta} --num_cpu_threads_per_data_thread {threads} {params.rfs} {params.options} {input.bam_in} --alleles {input.alleles} "
+        "gatk HaplotypeCaller {params.options} --reference {input.fasta} --alleles {input.alleles} -I {input.bam_in} -O {output.vcf}"
 
