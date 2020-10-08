@@ -37,7 +37,10 @@ rule calc_gene_expr:
 rule calc_metrics:
     input:
         expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", samples=real_samples)
-        
+
+rule calc_variants:
+    input:
+        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.vcf", samples=real_samples)        
 #######################
 ### GENOME INDEXING ###
 #######################
@@ -178,7 +181,7 @@ rule collect_mult_metrics:
 rule splitncigarreads:
     input:
         bam_in =  "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/{samples}.Aligned.toTranscriptome.out.bam", 
-        ref = config["reference_unzip"] 
+        ref = config["ref_unzip_wdict"] 
     output:
         bam_out = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.toTranscriptome.split_r.out.bam" 
     params:
@@ -194,9 +197,9 @@ rule haplotype_variant_calling:
     output:
         vcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.vcf"
     params:
-        rfs = "--num_cpu_threads_per_data_thread {threads} --output_mode EMIT_ALL_SITES --standard_min_confidence_threshold_for_calling 0 -rf DuplicateRead -rf FailsVendorQualityCheck -rf NotPrimaryAlignment -rf BadMate -rf MappingQualityUnavailable -rf UnmappedRead -rf BadCigar",
+        rfs = "--output_mode EMIT_ALL_SITES --standard_min_confidence_threshold_for_calling 0 -rf DuplicateRead -rf FailsVendorQualityCheck -rf NotPrimaryAlignment -rf BadMate -rf MappingQualityUnavailable -rf UnmappedRead -rf BadCigar",
         options = "--genotyping_mode GENOTYPE_GIVEN_ALLELES --analysis_type HaplotypeCaller --min_mapping_quality_score 30"
     threads: config["MAX_THREADS"]
     shell:
-        "gatk --reference_sequence {input.fasta} {params.rfs} {params.options} {input.bam_in} --alleles {input.alleles} "
+        "gatk --reference_sequence {input.fasta} --num_cpu_threads_per_data_thread {threads} {params.rfs} {params.options} {input.bam_in} --alleles {input.alleles} "
 
