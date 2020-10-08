@@ -131,7 +131,7 @@ rule rsem_prep_bam:
         bam_in = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/{samples}.Aligned.toTranscriptome.out.bam"
     output:
         bam_out = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/RSEM/{samples}.Aligned.toTranscriptome.rsem.out"
-    threads: 4
+    threads: config["MAX_THREADS"]
     shell:
         "convert-sam-for-rsem {input.bam_in} {params.bam_out} " #correct bam format for rsem
 
@@ -171,9 +171,9 @@ rule collect_mult_metrics:
     shell:
         "picard CollectMultipleMetrics I={params.bam_in} O={params.metrics} R={params.ref_fasta} "
         
-#######################
-### VARIANT CALLING ###
-#######################
+####################################
+### VARIANT CALLING | GENOTYPING ###
+####################################
 
 rule splitncigarreads:
     input:
@@ -185,5 +185,18 @@ rule splitncigarreads:
         "--create-output-bam-index true"
     shell:
         "gatk SplitNCigarReads --input {input.bam_in} --reference {input.ref} {params} --output {output.bam_out} "
-        
+
+rule haplotype_variant_calling:
+    input:
+        bam_in = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.toTranscriptome.split_r.out.bam", 
+        alleles = config["alleles"],
+        fasta = config["reference_unzip"]
+    output:
+        vcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.vcf"
+    params:
+        rfs = "--num_cpu_threads_per_data_thread {threads} --output_mode EMIT_ALL_SITES --standard_min_confidence_threshold_for_calling 0 -rf DuplicateRead -rf FailsVendorQualityCheck -rf NotPrimaryAlignment -rf BadMate -rf MappingQualityUnavailable -rf UnmappedRead -rf BadCigar",
+        options = "--genotyping_mode GENOTYPE_GIVEN_ALLELES --analysis_type HaplotypeCaller --min_mapping_quality_score 30"
+    threads: config["MAX_THREADS"]
+    shell:
+        "gatk --reference_sequence {input.fasta} {params.rfs} {params.options} {input.bam_in} --alleles {input.alleles} "
 
