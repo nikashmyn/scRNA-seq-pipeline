@@ -2,6 +2,8 @@
 ####### Snakefile for scRNA-seq (Stamatis Specific) #######
 ###########################################################
 
+#TODO: Fix config['MAX_THREADS'] issue where it is setting it to 1 rather than 16
+
 ################
 #### IMPORTS ###
 ################
@@ -14,12 +16,22 @@ import snakemake
 ### GLOBAL CONSTANTS ###
 ########################
 
+#Threads from config
+DEFAULT_THREADS = int(config["DEFAULT_THREADS"])
+MAX_THREADS = int(config["MAX_THREADS"])
+
 #Practice data
 prac_samples = list(["ERR523111"])
 real_samples = list(["SN218_Run1065_Lane1_190717_Nextera_1A10_L_166350_BCStamatis_Nextera384_190718_P1_A10.demult.bam.qsort.bam"])
 chrom_intervals = [f'-L chr{i}' for i in range(1, 23)]
 alt_intervals = ['-L chrX', '-L chrY', '-L chrM']
 chrom_intervals.extend(alt_intervals)
+
+#Whole f experiment
+SIS1025f_samples = pd.read_table(config["samples"])
+
+#All samples
+all_samples = set(SIS1025f_samples['samples'])
 
 ########################
 ### INPUT-ONLY RULES ###
@@ -29,21 +41,23 @@ rule index_genome:
         starindex = "/pellmanlab/stam_niko/refgenomes/STAR/Gencode.v25/", #SAindex",
         rsemindex = "/pellmanlab/stam_niko/refgenomes/RSEM/Gencode.v25/" #genecode.v25"
 
+#Add f'...{experimentf}...' to all these string paths
 rule align:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/.{samples}_mockfile.txt", samples=real_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/.{samples}_mockfile.txt", samples=all_samples)
 
 rule calc_gene_expr:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/RSEM/.{samples}_mockfile.rsem_calc.txt", samples=real_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/RSEM/.{samples}_mockfile.rsem_calc.txt", samples=all_samples)
 
 rule calc_metrics:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", samples=real_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", samples=all_samples)
 
 rule calc_variants:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.vcf", samples=real_samples)        
+        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.g.vcf.gz", samples=all_samples) 
+
 #######################
 ### GENOME INDEXING ###
 #######################
@@ -92,7 +106,7 @@ rule STAR_alignment:
         mock = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/.{samples}_mockfile.txt" 
     params:
         names = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/{samples}."
-    threads: config["MAX_THREADS"]
+    threads: 25 #config["MAX_THREADS"]
     shell:
         """
         STAR \
@@ -200,10 +214,11 @@ rule haplotype_variant_calling:
         alleles = config["alleles"],
         fasta = config["ref_unzip_wdict"]
     output:
-        vcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.vcf"
+        gvcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.g.vcf.gz"
     params:
-        options = "--output-mode EMIT_ALL_ACTIVE_SITES --standard-min-confidence-threshold-for-calling 0 --minimum-mapping-quality 30"
+	#I need to address the -rf removals used in etai's code
+        options = "--output-mode EMIT_ALL_ACTIVE_SITES -ERC GVCF --standard-min-confidence-threshold-for-calling 0 --minimum-mapping-quality 30"
     threads: config["MAX_THREADS"]
     shell:
-        "gatk HaplotypeCaller {params.options} --reference {input.fasta} --alleles {input.alleles} -I {input.bam_in} -O {output.vcf}"
+        "gatk HaplotypeCaller {params.options} --native-pair-hmm-threads 20 --reference {input.fasta} --alleles {input.alleles} -I {input.bam_in} -O {output.gvcf}"
 
