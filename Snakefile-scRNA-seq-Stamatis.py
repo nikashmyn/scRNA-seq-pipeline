@@ -66,8 +66,8 @@ b_samples = set(SIS1025b_samples['samples'])
 SIS1025a_samples = pd.read_table("samples/SIS1025a_samples.txt", header=0 )
 a_samples = set(SIS1025a_samples['samples'])
 
-experiments = ["SIS1025f_Lane1" , "SIS1025f_Lane2", "SIS1025e", "SIS1025d"]
-samples_set = [f_L1_samples, f_L2_samples, e_samples, d_samples]
+experiments = ["SIS1025f_Lane1" , "SIS1025f_Lane2", "SIS1025e", "SIS1025d", "SIS1025b", "SIS1025a"]
+samples_set = [f_L1_samples, f_L2_samples, e_samples, d_samples, b_samples, a_samples]
 
 #All samples
 all_samples = []
@@ -146,6 +146,14 @@ rule track_data:
 rule run_check_data:
     input:
         [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", experiment=experiments[i]) for i in range(len(experiments))]
+
+rule run_data_aggregation:
+    input:
+        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", experiment=experiments)
+
+rule run_data_aggregation_macro:
+    input:
+        "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.12_18.data_aggregation_macro.txt"
 
 #######################
 ### GENOME INDEXING ###
@@ -262,7 +270,7 @@ rule rsem_calc_expr:
         bam_in = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out.bam",
         ref_name = "/pellmanlab/stam_niko/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
         sample_name = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/{samples}",
-        options = "--paired-end --no-bam-output", # --calc-pme", works for 99.9% of samples but some are too small for pme # --calc-ci ", calc-ci giving error maybe bug in version
+        options = "--paired-end --no-bam-output --estimate-rspd ", #--calc-pme", #works for 99.9% of samples but some are too small for pme # --calc-ci ", calc-ci giving error maybe bug in version
 #        tmp = "--temporary-folder /pellmanlab/stam_niko/data/tmp/"
     #threads: 4
     shell:
@@ -413,13 +421,32 @@ rule check_data:
     shell:
         "touch {output.mock_out}"
 
+rule aggregate_data:
+    input:
+        mock_in = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt",
+    output:
+        mock_out = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
+    params:
+       script_dir = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts",
+       expr = "{experiment}",
+       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+       script = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts/Analysis_Etai_Snakemake.R"
+    threads: 13
+    shell:
+        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.expr} {threads} "
+        "&& touch {output.mock_out} "
 
-#     params:
-#        script_dir = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts",
-#        wk_dir = "/pellmanlab/stam_niko/data/processed_bam/{experiment}",
-#        script = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts/Analysis_Etai_Snakemake.R"
-#    shell:
-#        "Rscript {params.script} {params.script_dir} {params.wk_dir} "
-#        "&& touch {output.mock_out} "
 
-
+rule aggregate_data_macro:
+    input:
+        mock_in = [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", experiment=experiments[i]) for i in range(len(experiments))],
+    output:
+        mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.12_18.data_aggregation_macro.txt", 
+    params:
+       script_dir = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts",
+       all_experiments = [experiments[i] for i in range(len(experiments))],
+       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+       script = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts/Data_Aggregation.R"
+    shell:
+        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.all_experiments} "
+        "&& touch {output.mock_out} "
