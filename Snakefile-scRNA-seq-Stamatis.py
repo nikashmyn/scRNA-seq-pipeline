@@ -39,6 +39,9 @@ chroms = set(chroms)
 #Lanes
 lane = ['Lane1', 'Lane2'] 
 
+#Temp
+tmp = "SN218_Run1065_Lane1_190717_Nextera_1E1_L_166282_BCStamatis_Nextera384_190718_P1_E1"
+
 #Temp f experiment
 #SIS1025f_samples = pd.read_table("samples/SIS1025f_samples.txt", header=0 )
 #all_samples = set(SIS1025f_samples['samples'])
@@ -66,8 +69,8 @@ b_samples = set(SIS1025b_samples['samples'])
 SIS1025a_samples = pd.read_table("samples/SIS1025a_samples.txt", header=0 )
 a_samples = set(SIS1025a_samples['samples'])
 
-experiments = ["SIS1025f_Lane1" , "SIS1025f_Lane2", "SIS1025e", "SIS1025d", "SIS1025b", "SIS1025a"]
-samples_set = [f_L1_samples, f_L2_samples, e_samples, d_samples, b_samples, a_samples]
+experiments = [ "SIS1025a", "SIS1025b", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2" ]
+samples_set = [a_samples, b_samples, d_samples, e_samples, f_L1_samples, f_L2_samples]
 
 #All samples
 all_samples = []
@@ -111,11 +114,13 @@ rule calc_gene_expr:
 
 rule calc_metrics:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", samples=all_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", experiment='SIS1025f_Lane1', samples=f_L1_samples),
+        #expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", samples=all_samples)
 
 rule change_rgtags:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", samples=all_samples)
+        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", experiment='SIS1025f_Lane1', samples=tmp),
+        #expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", samples=all_samples)
 
 #rule calc_variants:
 #    input:
@@ -130,14 +135,14 @@ rule change_rgtags:
 #    input:
 #        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/SIS1025f_{chrom}_allsamples.vcf.gz", chrom=chroms)
 
-rule gen_vcf_jobs:
-    input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/mockfile.gengenotypecmds.{lanes}.txt", lanes=lane)
+#rule gen_vcf_jobs:
+#    input:
+#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/mockfile.gengenotypecmds.{lanes}.txt", lanes=lane)
 
 
-rule run_vcf_jobs:
-    input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/.mockfile.rungenotypecmds.{lanes}.txt", lanes=lane)
+#rule run_vcf_jobs:
+#    input:
+#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/.mockfile.rungenotypecmds.{lanes}.txt", lanes=lane)
 
 rule track_data:
     input:
@@ -153,7 +158,16 @@ rule run_data_aggregation:
 
 rule run_data_aggregation_macro:
     input:
-        "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.12_18.data_aggregation_macro.txt"
+        "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.data_aggregation_macro.txt"
+
+rule run_ML:
+    input:
+        "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.mlscript.txt"
+
+rule run_data_visualization:
+    input:
+        "/pellmanlab/stam_niko/data/processed_bam/visual_results/.mockfile.visuals.txt"
+
 
 #######################
 ### GENOME INDEXING ###
@@ -388,7 +402,7 @@ rule etai_genotype_generate_call:
     params:
         ls = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/*RG.out.bam",
         bamlist = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{experiment}.bamfiles.list",
-        script = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts/RPE-1_GRCh38_Genotype_etai.sh",
+        script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/RPE-1_GRCh38_Genotype_etai.sh",
         out_name = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/{experiment}"
     shell:
         "ls {params.ls} > {params.bamlist} "
@@ -427,26 +441,62 @@ rule aggregate_data:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
     params:
-       script_dir = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts",
+       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
        expr = "{experiment}",
        wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-       script = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts/Analysis_Etai_Snakemake.R"
-    threads: 13
+       script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Analysis_Etai_Snakemake.R",
+       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
+    threads: 1 #13 I dont think the multiple cores works
     shell:
-        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.expr} {threads} "
+        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.expr} {threads} "
         "&& touch {output.mock_out} "
 
 
-rule aggregate_data_macro:
+rule aggregate_data_macro_and_models:
     input:
         mock_in = [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", experiment=experiments[i]) for i in range(len(experiments))],
     output:
-        mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.12_18.data_aggregation_macro.txt", 
+        mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.data_aggregation_macro.txt", 
     params:
-       script_dir = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts",
+       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
        all_experiments = [experiments[i] for i in range(len(experiments))],
        wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-       script = "/pellmanlab/stam_niko/etai_code/DFCI.scRNAseq.workflows/scripts/Data_Aggregation.R"
+       script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Data_Aggregation.R",
+       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     shell:
-        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.all_experiments} "
+        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.all_experiments} "
         "&& touch {output.mock_out} "
+
+
+rule machine_learning_model:
+    input:
+        mock_in = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.data_aggregation_macro.txt",
+    output:
+        mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.mlscript.txt",
+    params:
+       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+       script = "/pellmanlab/nikos/Stam_Etai_Scripts/ML/Run_ML.R",
+       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
+    shell:
+        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} "
+        "&& touch {output.mock_out} "
+
+###########################
+### DATA VISUALIZATION  ###
+###########################
+
+rule visualization_script:
+    input:
+        mock_in = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.mlscript.txt",
+    output:
+        mock_out = "/pellmanlab/stam_niko/data/processed_bam/visual_results/.mockfile.visuals.txt",
+    params:
+       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+       script = "/pellmanlab/nikos/Stam_Etai_Scripts/plots/visual_generator_Nikos.R",
+       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
+    shell:
+        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir}"
+        "&& touch {output.mock_out} "
+
