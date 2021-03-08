@@ -19,6 +19,9 @@ import snakemake
 ### GLOBAL CONSTANTS ###
 ########################
 
+#Could just pull from set working dir. Modular option
+OUTDIR = f'{config["OUTDIR"]}/data/processed_bam'
+
 #Threads from config
 DEFAULT_THREADS = int(config["DEFAULT_THREADS"])
 MAX_THREADS = int(config["MAX_THREADS"])
@@ -76,87 +79,44 @@ all_samples.extend(f_L2_samples)
 ########################
 #rule index_genome:
 #    input:
-#       : starindex = "/pellmanlab/stam_niko/refgenomes/STAR/Gencode.v25/", #SAindex",
+#        starindex = "/pellmanlab/stam_niko/refgenomes/STAR/Gencode.v25/", #SAindex",
 #        rsemindex = "/pellmanlab/stam_niko/refgenomes/RSEM/Gencode.v25/" #genecode.v25"
-
-#Add f'...{experimentf}...' to all these string paths
-rule all:
-    input:
-         f"/pellmanlab/stam_niko/data/processed_bam/visual_results/.mockfile.visuals.txt"
 
 rule align:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/STAR/.{samples}_mockfile.txt", experiment='SIS1025f_Lane1', samples=f_L1_samples),
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/STAR/.{samples}_mockfile.txt", experiment='SIS1025f_Lane2', samples=f_L2_samples),
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/STAR/.{samples}_mockfile.txt", experiment='SIS1025e', samples=e_samples),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/STAR/.{samples}_mockfile.txt", experiment='SIS1025d', samples=d_samples),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/STAR/.{samples}_mockfile.txt", experiment='SIS1025b', samples=b_samples),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/STAR/.{samples}_mockfile.txt", experiment='SIS1025a', samples=a_samples)
+        [expand("{path}/{experiment}/STAR/.{samples}_mockfile.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
 
 rule calc_gene_expr:
-    input:        
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", experiment='SIS1025f_Lane1', samples=f_L1_samples),
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", experiment='SIS1025f_Lane2', samples=f_L2_samples),
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", experiment='SIS1025e', samples=e_samples),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", experiment='SIS1025d', samples=d_samples),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", experiment='SIS1025b', samples=b_samples),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", experiment='SIS1025a', samples=a_samples)
+    input:
+        [expand("{path}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
 
 rule calc_metrics:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", experiment='SIS1025f_Lane1', samples=f_L1_samples),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", samples=all_samples)
+        [expand("{path}/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
 
 rule change_rgtags:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", experiment='SIS1025f_Lane1', samples=tmp),
-        #expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", samples=all_samples)
-
-#rule calc_variants:
-#    input:
-#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.g.vcf.gz", samples=all_samples)
-	#expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/SIS1025f.{chrom}.vcf.gz", chrom=chrom_intervals)
-
-#rule calc_gvcf:
-#    input:
-#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/SIS1025f_{chrom}_allsamples.g.vcf.gz", chrom=chroms)
-        
-#rule calc_vcf:
-#    input:
-#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/SIS1025f_{chrom}_allsamples.vcf.gz", chrom=chroms)
-
-#rule gen_vcf_jobs:
-#    input:
-#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/mockfile.gengenotypecmds.{lanes}.txt", lanes=lane)
-
-
-#rule run_vcf_jobs:
-#    input:
-#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/.mockfile.rungenotypecmds.{lanes}.txt", lanes=lane)
-
-rule track_data:
-    input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", experiment='SIS1025e', samples=e_samples)
+        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
 
 rule run_check_data:
     input:
-        [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", experiment=experiments[i]) for i in range(len(experiments))]
+        [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
 
 rule run_data_aggregation:
     input:
-        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", experiment=experiments)
+        expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", path=OUTDIR, experiment=experiments)
 
 rule run_data_aggregation_macro:
     input:
-        "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.data_aggregation_macro.txt"
+        expand("{path}/aggregated_results/.mockfile.data_aggregation_macro.txt", path=OUTDIR)
 
 rule run_ML:
     input:
-        "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.mlscript.txt"
+        expand("{path}/aggregated_results/.mockfile.mlscript.txt", path=OUTDIR)
 
 rule run_data_visualization:
     input:
-        "/pellmanlab/stam_niko/data/processed_bam/visual_results/.mockfile.visuals.txt"
+        expand("{path}/visual_results/.mockfile.visuals.txt", path=OUTDIR)
 
 
 #######################
@@ -427,7 +387,7 @@ rule check_data:
 
 rule aggregate_data:
     input:
-        mock_in = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt",
+        mock_in = [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", experiment=experiments[i]) for i in range(len(experiments))]
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
     params:
