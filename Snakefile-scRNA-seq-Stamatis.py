@@ -2,6 +2,8 @@
 ####### Snakefile for scRNA-seq (Stamatis Specific) #######
 ###########################################################
 
+os.chdir(config["OUTDIR"])
+
 #TODO: Fix config['MAX_THREADS'] issue where it is setting it to 1 rather than 16
 #TODO: make the paths and locations modular
 
@@ -16,9 +18,6 @@ import snakemake
 ########################
 ### GLOBAL CONSTANTS ###
 ########################
-
-#GATK_FILTERS = ("-RF MappingQualityReadFilter --minimum-mapping-quality 30 "
-#                "-RF OverclippedReadFilter --filter-too-short 50")
 
 #Threads from config
 DEFAULT_THREADS = int(config["DEFAULT_THREADS"])
@@ -36,39 +35,30 @@ alt_chroms = ['chrX', 'chrY', 'chrM']
 chroms.extend(alt_chroms)
 chroms = set(chroms)
 
-#Lanes
-lane = ['Lane1', 'Lane2'] 
-
-#Temp
-tmp = "SN218_Run1065_Lane1_190717_Nextera_1E1_L_166282_BCStamatis_Nextera384_190718_P1_E1"
-
-#Temp f experiment
-#SIS1025f_samples = pd.read_table("samples/SIS1025f_samples.txt", header=0 )
-#all_samples = set(SIS1025f_samples['samples'])
-
-#Whole f experiment
-SIS1025f_L1_samples = pd.read_table("samples/SIS1025f_L1_samples.txt", header=0 )
-f_L1_samples = set(SIS1025f_L1_samples['samples'])
-
-SIS1025f_L2_samples = pd.read_table("samples/SIS1025f_L2_samples.txt", header=0 )
-f_L2_samples = set(SIS1025f_L2_samples['samples'])
-
-#Whole e experiment
-SIS1025e_samples = pd.read_table("samples/SIS1025e_samples.txt", header=0 )
-e_samples = set(SIS1025e_samples['samples'])
-
-#Whole d experiment
-SIS1025d_samples = pd.read_table("samples/SIS1025d_samples.txt", header=0 )
-d_samples = set(SIS1025d_samples['samples'])
-
-#Whole b experiment
-SIS1025b_samples = pd.read_table("samples/SIS1025b_samples.txt", header=0 )
-b_samples = set(SIS1025b_samples['samples'])
-
 #Whole a experiment
-SIS1025a_samples = pd.read_table("samples/SIS1025a_samples.txt", header=0 )
+SIS1025a_samples = pd.read_table(config["a_samples"], header=0 )
 a_samples = set(SIS1025a_samples['samples'])
 
+#Whole b experiment
+SIS1025b_samples = pd.read_table(config["b_samples"], header=0 )
+b_samples = set(SIS1025b_samples['samples'])
+
+#Whole d experiment
+SIS1025d_samples = pd.read_table(config["d_samples"], header=0 )
+d_samples = set(SIS1025d_samples['samples'])
+
+#Whole e experiment
+SIS1025e_samples = pd.read_table(config["e_samples"], header=0 )
+e_samples = set(SIS1025e_samples['samples'])
+
+#Whole f experiment
+SIS1025f_L1_samples = pd.read_table(config["f1_samples"], header=0 )
+f_L1_samples = set(SIS1025f_L1_samples['samples'])
+
+SIS1025f_L2_samples = pd.read_table(config["f2_samples"], header=0 )
+f_L2_samples = set(SIS1025f_L2_samples['samples'])
+
+#list of experiments sets
 experiments = [ "SIS1025a", "SIS1025b", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2" ]
 samples_set = [a_samples, b_samples, d_samples, e_samples, f_L1_samples, f_L2_samples]
 
@@ -90,9 +80,9 @@ all_samples.extend(f_L2_samples)
 #        rsemindex = "/pellmanlab/stam_niko/refgenomes/RSEM/Gencode.v25/" #genecode.v25"
 
 #Add f'...{experimentf}...' to all these string paths
-#rule all:
-#    input:
-#        expand("/pellmanlab/stam_niko/data/processed_bam/SIS1025f/STAR/.{samples}_mockfile.txt", samples=all_samples)
+rule all:
+    input:
+         f"/pellmanlab/stam_niko/data/processed_bam/visual_results/.mockfile.visuals.txt"
 
 rule align:
     input:
