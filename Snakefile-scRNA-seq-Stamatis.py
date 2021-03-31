@@ -98,6 +98,19 @@ rule change_rgtags:
     input:
         [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
 
+rule run_variant_calling:
+    input:
+        [expand("{path}/{experiment}/Variants/ASE/{samples}.vcf.gz", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
+
+rule gen_call_variant:
+    input:
+        [expand("{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
+
+
+rule run_call_variant:
+    input:
+        expand("{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", path=OUTDIR, experiment=experiments, chrs=chroms)
+
 rule run_check_data:
     input:
         [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
@@ -333,15 +346,25 @@ rule index_RG_bams:
 #    shell:
 #        "gatk GenotypeGVCFs {params.interval} -R {input.fa} -V {input.gvcf} -O {output.vcf} "
 
-#rule count_reads_allelic:
+#rule variant_calling:
 #    input:
 #        ref = config["ref_unzip_wdict"],
 #        hets = config["alleles"],
-#        bam = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam"
+#        bam = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
 #    output:
-#        vcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.AD.tsv"
+#        vcf = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/ASE/{samples}.vcf.gz"
 #    shell:
-#        "gatk ASEReadCounter -I {input.bam} -V {input.hets} "
+#        "gatk Mutect2 -R {input.ref} -I {input.bam} -alleles {input.hets} -O {output.vcf} "
+
+#rule count_reads_allelic:
+#    input:
+#        ref = config["reference_genotyping"],
+#        hets = config["alleles"],
+#        bam = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
+#    output:
+#        vcf = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/ASE/{samples}.AD.tsv"
+#    shell:
+#        "gatk ASEReadCounter -I {input.bam} -V {input.hets} " # -O {output.vcf}"
 #        "-R {input.ref} -O {output.vcf}"
 
 rule etai_genotype_generate_call:
@@ -351,24 +374,30 @@ rule etai_genotype_generate_call:
         mockfile = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt"
     params:
         ls = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/*RG.out.bam",
+        hets = config["alleles"],
+        ref = config["ref_unzip_wdict"],
+        GATK = config["GATK_path"],
+        Picard = config["Picard_path"],
         bamlist = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{experiment}.bamfiles.list",
-        script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/RPE-1_GRCh38_Genotype_etai.sh",
+        script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/RPE-1_GRCh38_Genotype_nikos.sh", #*_etai.sh
         out_name = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/{experiment}"
     shell:
         "ls {params.ls} > {params.bamlist} "
-        "&& bash {params.script} {params.bamlist} {params.out_name} 1 "
+        "&& bash {params.script} {params.bamlist} {params.out_name} 1 {params.ref} {params.hets} {params.GATK} {params.Picard} "
         "&& touch {output.mockfile}"
 
 rule etai_genotype_run:
     input:
         "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt",
     output:
-        "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.txt"
+        "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt"
     params:
-        "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/{experiment}_RPE_hets_GT.UG_jobs.list"
-    threads: 25 # didnt put {threads} below because I want the jobs to always be 25 for this part no matter what I put in cmd line
+        "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/{experiment}_RPE_hets_GT.UG_jobs.{chrs}.sh"
+    log:
+        "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/{experiment}.rungenotypecmds.{chrs}.log"
+    # threads: 25 # didnt put {threads} below because I want the jobs to always be 25 for this part no matter what I put in cmd line
     shell:
-        "parallel --jobs {threads} < {params} "
+        "sh {params} 2> {log} " # "parallel --jobs {threads} < {params} "
         "&& touch {output}"
 
 ####################################
@@ -379,7 +408,7 @@ rule check_data:
     input:
         [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
         [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
-        [expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.txt", experiment=experiments[i]) for i in range(len(experiments))],
+        expand("/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", experiment=experiments, chrs=chroms),
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt"
     shell:
@@ -391,11 +420,11 @@ rule aggregate_data:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
     params:
-       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
-       expr = "{experiment}",
-       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-       script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Analysis_Etai_Snakemake.R",
-       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
+        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+        expr = "{experiment}",
+        wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+        script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Analysis_Etai_Snakemake.R",
+        datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     threads: 1 #13 I dont think the multiple cores works
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.expr} {threads} "
@@ -408,11 +437,11 @@ rule aggregate_data_macro_and_models:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.data_aggregation_macro.txt", 
     params:
-       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
-       all_experiments = [experiments[i] for i in range(len(experiments))],
-       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-       script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Data_Aggregation.R",
-       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
+        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+        all_experiments = [experiments[i] for i in range(len(experiments))],
+        wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+        script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Data_Aggregation.R",
+        datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.all_experiments} "
         "&& touch {output.mock_out} "
@@ -424,10 +453,10 @@ rule machine_learning_model:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.mlscript.txt",
     params:
-       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
-       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-       script = "/pellmanlab/nikos/Stam_Etai_Scripts/ML/Run_ML.R",
-       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
+        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+        wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+        script = "/pellmanlab/nikos/Stam_Etai_Scripts/ML/Run_ML.R",
+        datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} "
         "&& touch {output.mock_out} "
@@ -442,10 +471,10 @@ rule visualization_script:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/visual_results/.mockfile.visuals.txt",
     params:
-       script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
-       wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-       script = "/pellmanlab/nikos/Stam_Etai_Scripts/plots/visual_generator_Nikos.R",
-       datadir = "/pellmanlab/nikos/Stam_Etai_Data"
+        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+        wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
+        script = "/pellmanlab/nikos/Stam_Etai_Scripts/plots/visual_generator_Nikos.R",
+        datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir}"
         "&& touch {output.mock_out} "

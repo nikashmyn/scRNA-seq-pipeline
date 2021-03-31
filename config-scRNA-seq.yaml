@@ -2,29 +2,43 @@
 ### Configfile for Snakefile-scRNA-seq in YAML ###
 ##################################################
 
+# Note you can not use variable in PyYaml so these paths must be full
+
 ### Directories ###
 OUTDIR: /pellmanlab/stam_niko
 SNAKEDIR: /pellmanlab/nikos/scRNA-seq-pipeline
 
+### Specific Software Versions ###
+GATK_path: /pellmanlab/nikos/Stam_Etai_Packages/GATK/current/GenomeAnalysisTK.jar
+Picard_path: /pellmanlab/nikos/Stam_Etai_Packages/picard/current/bin/picard.jar
+
 ### Reference Genomes ### 
-reference_unzip: {{OUTDIR}}/refgenomes/Gencode/v25/GRCh38.primary_assembly.genome.fa
-ref_unzip_wdict: {{OUTDIR}}/refgenomes/Gencode/v25/wdict/GRCh38.primary_assembly.genome.fa
-reference_gtf_unzip: {{OUTDIR}}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf
+reference_unzip: /pellmanlab/stam_niko/refgenomes/Gencode/v25/GRCh38.primary_assembly.genome.fa
+ref_unzip_wdict: /pellmanlab/stam_niko/refgenomes/Gencode/v25/wdict/GRCh38.primary_assembly.genome.fa
+reference_gtf_unzip: /pellmanlab/stam_niko/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf
 readlength: 100
 
 ### Reference RPE-1 Data ###
-normal: /singlecellcenter/RPE-1/bamlinks/GRCh38/RPE_bulk.bam
-normal_name: RPE-Bulk2 #RPE1-bulk
-alleles: /czlab/Data/RPE-1_Genotyping_GRCh38/v.1/RPE-1.hets.vcf.gz
+#/czlab/References/GRCh38/Homo_sapiens_assembly38.fasta
+#/seq/references/Homo_sapiens_assembly38/v0/Homo_sapiens_assembly38.fasta
+#This is the reference fa that etai was using in his genotyping script. different from what he uses in rest of experiment. 
+#/czlab/References/GRCh38/GRCh38.primary_assembly.genome.fa
+ # reference_genotyping: "/czlab/References/GRCh38/GRCh38.primary_assembly.genome.fa"
+ # reference_genotyping: "/czlab/References/GRCh38/Homo_sapiens_assembly38.fasta"
+normal: "/singlecellcenter/RPE-1/bamlinks/GRCh38/RPE_bulk.bam"
+normal_name: "RPE-Bulk2" #RPE1-bulk
+ # alleles: "/czlab/Data/RPE-1_Genotyping_GRCh38/v.1/RPE-1.hets.vcf.gz"
+ # alleles: "/czlab/Data/RPE-1/VariantCalling/RPE-1.hets.chr1-X.BA.SNP.sites.vcf.gz"
+alleles: "/pellmanlab/nikos/Stam_Etai_Data/work_in_progress/RPE-1.hets.chr1-X.BA.SNP.sites.vcf.gz"
 
 ### Samples Files ###
-samplesdir: {{SNAKEDIR}}/samples
-a_samples: {{samplesdir}}/SIS1025a_samples.txt
-b_samples: {{samplesdir}}/SIS1025b_samples.txt
-d_samples: {{samplesdir}}/SIS1025d_samples.txt
-e_samples: {{samplesdir}}/SIS1025e_samples.txt
-f1_samples: {{samplesdir}}/SIS1025f_L1_samples.txt
-f2_samples: {{samplesdir}}/SIS1025f_L2_samples.txt
+samplesdir: /pellmanlab/nikos/scRNA-seq-pipeline/samples
+a_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025a_samples.txt
+b_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025b_samples.txt
+d_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025d_samples.txt
+e_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025e_samples.txt
+f1_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025f_L1_samples.txt
+f2_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025f_L2_samples.txt
 
 ### Picard Options ###
 # for configuring picard "max_records_in_ram", determines memory usage 
@@ -42,6 +56,5 @@ MAX_THREADS: 16
 DEFAULT_THREADS: 4
 
 ### GATK Options ### 
-GATK: 'gatk --java-options "-Xmx16G -XX:+UseParallelGC -XX:ParallelGCThreads=8"'
 PICARD_OPTIONS: f'--TMP_DIR 'tmp' --MAX_RECORDS_IN_RAM 16 --USE_JDK_DEFLATER --USE_JDK_INFLATER --COMPRESSION_LEVEL 5'
 GATK_FILTERS: ("-RF MappingQualityReadFilter --minimum-mapping-quality 30 -RF OverclippedReadFilter --filter-too-short 50")
