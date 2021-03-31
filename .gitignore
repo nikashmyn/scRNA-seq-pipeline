@@ -7,3 +7,6 @@
 !config-scRNA-seq.yaml
 !all_scripts/
 !all_scripts/*
+!all_scripts/scripts/*
+!all_scripts/ML/*
+!all_scripts/plots/*
