@@ -3,6 +3,8 @@
 ###########################################################
 
 os.chdir(config["OUTDIR"])
+wkdir = config["OUTDIR"]
+skdir = config["SNAKEDIR"]
 
 #TODO: Fix config['MAX_THREADS'] issue where it is setting it to 1 rather than 16
 #TODO: make the paths and locations modular
@@ -420,10 +422,10 @@ rule aggregate_data:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
     params:
-        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+        script_dir = "/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts",
         expr = "{experiment}",
         wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-        script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Analysis_Etai_Snakemake.R",
+        script = "/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts/scripts/Analysis_Etai_Snakemake.R",
         datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     threads: 1 #13 I dont think the multiple cores works
     shell:
@@ -437,10 +439,10 @@ rule aggregate_data_macro_and_models:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.data_aggregation_macro.txt", 
     params:
-        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+        script_dir = "/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts",
         all_experiments = [experiments[i] for i in range(len(experiments))],
         wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-        script = "/pellmanlab/nikos/Stam_Etai_Scripts/scripts/Data_Aggregation.R",
+        script = "/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts/scripts/Data_Aggregation.R",
         datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.all_experiments} "
@@ -453,9 +455,9 @@ rule machine_learning_model:
     output:
         mock_out = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.mlscript.txt",
     params:
-        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
+        script_dir = "/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts",
         wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-        script = "/pellmanlab/nikos/Stam_Etai_Scripts/ML/Run_ML.R",
+        script = "/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts/ML/Run_ML.R",
         datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} "
@@ -467,13 +469,13 @@ rule machine_learning_model:
 
 rule visualization_script:
     input:
-        mock_in = "/pellmanlab/stam_niko/data/processed_bam/aggregated_results/.mockfile.mlscript.txt",
+        mock_in = f"{wkdir}/data/processed_bam/aggregated_results/.mockfile.mlscript.txt",
     output:
-        mock_out = "/pellmanlab/stam_niko/data/processed_bam/visual_results/.mockfile.visuals.txt",
+        mock_out = f"{wkdir}/data/processed_bam/visual_results/.mockfile.visuals.txt",
     params:
-        script_dir = "/pellmanlab/nikos/Stam_Etai_Scripts",
-        wk_dir = "/pellmanlab/stam_niko/data/processed_bam",
-        script = "/pellmanlab/nikos/Stam_Etai_Scripts/plots/visual_generator_Nikos.R",
+        script_dir = f"{skdir}/all_scripts",
+        wk_dir = f"{wkdir}/data/processed_bam",
+        script = f"{skdir}/all_scripts/plots/visual_generator_Nikos.R",
         datadir = "/pellmanlab/nikos/Stam_Etai_Data"
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir}"

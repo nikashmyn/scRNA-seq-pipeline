@@ -5,6 +5,7 @@
 !Snakefile-scRNA-seq-Stamatis.py
 !snakemake.sh
 !config-scRNA-seq.yaml
+!environment.yml
 !all_scripts/
 !all_scripts/*
 !all_scripts/scripts/*

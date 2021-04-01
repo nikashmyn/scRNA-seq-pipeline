@@ -5,8 +5,8 @@
 # Note you can not use variable in PyYaml so these paths must be full
 
 ### Directories ###
-OUTDIR: /pellmanlab/stam_niko
-SNAKEDIR: /pellmanlab/nikos/scRNA-seq-pipeline
+OUTDIR: /pellmanlab/stam_niko #where output data should be stored
+SNAKEDIR: /pellmanlab/nikos/scRNA-seq-pipeline #path to the github repository 
 
 ### Specific Software Versions ###
 GATK_path: /pellmanlab/nikos/Stam_Etai_Packages/GATK/current/GenomeAnalysisTK.jar

@@ -1,7 +1,7 @@
 #################################################################################
 # Passed arguments:
 #################################################################################
-#args <- c("/pellmanlab/nikos/Stam_Etai_Scripts", "/pellmanlab/stam_niko/data/processed_bam", "/pellmanlab/nikos/Stam_Etai_Data")
+#args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/data/processed_bam", "/pellmanlab/nikos/Stam_Etai_Data")
 args <- commandArgs(trailingOnly = TRUE)
 print(args)
 scriptsdir <- args[1]

@@ -93,10 +93,12 @@ stats.cn.chr <- tmp[, lapply(.SD, function(x) mean(x, na.rm = T)), .SDcols = col
 
 #Intermediate copy number stats:
 #-------------------------------
+#This part gives you the fraction of intermediate predictions (not clearly one CN state)
+#out of all the predictions in a bin (bin = chr or arm)
 maxprob <- do.call(cbind, lapply(ourpreds$preds, function(x) apply(x, 1, max)))
 setkeyv(ourpreds$rowdata, c("seqnames", "start", "end", "id"))
 setkeyv(arms, c("seqnames", "start", "end", "id"))
-# I changed this to merge insteaf foverlap
+# I changed this to merge instead foverlap
 tmp <- merge(ourpreds$rowdata, arms)
 stopifnot(sum(tmp$id != ourpreds$rowdata$id) == 0)
 tmp <- tmp[, c("id", "seqnames", "start", "end", "arm"), with=F]
@@ -124,7 +126,7 @@ interstat.arm <- readRDS(file = sprintf("%s/ML_data/interstat.armlevel.probs_olr
 #This script has the calculate_fraction... function used below
 source( sprintf('%s/plots/plot_cn_and_intermediate_prediction_latest_model.R', scriptsdir) )
 
-#fracstat:
+#fracstat: (the fraction of loci that are classified as each CN state)
 tmp <- lapply(controlIDs, function(myid) {
   message(myid)
   rbindlist(lapply(unique(interstat.chr$seqnames), function(chr, myid) {

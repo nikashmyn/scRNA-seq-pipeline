@@ -3,7 +3,7 @@
 ###################################
 
 args <- commandArgs(trailingOnly = TRUE)
-#args <- c("/pellmanlab/nikos/Stam_Etai_Scripts", "/pellmanlab/stam_niko/data/processed_bam", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025f_Lane1", 1)
+#args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/data/processed_bam", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025f_Lane1", 1)
 scriptsdir <- args[1]
 wkdir <- args[2]
 datadir <- args[3]
