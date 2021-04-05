@@ -119,6 +119,12 @@ golden.which.loss <- copy(which.loss[!sample_id %in% too_many_aneuploidies, ])
 golden.which.normal <- copy(which.normal[!sample_id %in% too_many_aneuploidies, ])
 message("Total of: ", nrow(golden.which.gain), " gains, ", nrow(golden.which.loss), " losses, and ", nrow(golden.which.normal), " normals.")
 
+#Save golden sample ids
+golden_samples <- c()
+golden_samples$loss <- golden.which.loss
+golden_samples$normal <- golden.which.normal
+golden_samples$gain <- golden.which.gain
+saveRDS(golden_samples, sprintf("%s/ML_data/golden_set_ids.rds", dirpath))
 
 
 ##################################################

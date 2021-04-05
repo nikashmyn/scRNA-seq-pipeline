@@ -161,3 +161,71 @@ rule rsem_calc_expr:
         "{params.bam_in} {params.ref_name} {params.sample_name} "
         "&& touch {output.mock} "
 
+
+
+
+
+
+
+
+##### example genotyping calls ######
+#rule haplotype_variant_calling:
+#    input:
+#        bam_in = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam", 
+#        alleles = config["alleles"],
+#        fasta = config["ref_unzip_wdict"]
+#    output:
+#        gvcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{samples}.g.vcf.gz"
+#    params:
+        #I need to address the -rf removals used in etai's code
+#        options = "-ERC GVCF --standard-min-confidence-threshold-for-calling 0 --minimum-mapping-quality 30"
+#    threads: config["MAX_THREADS"]
+#    shell:
+#        "gatk HaplotypeCaller {params.options} --native-pair-hmm-threads 20 --reference {input.fasta} --alleles {input.alleles} -I {input.bam_in} -O {output.gvcf}"
+
+#rule GVCF_combine_bychr:
+#    input:
+#        fa = config["ref_unzip_wdict"]
+#    output:
+#        gvcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/SIS1025f_{chrom}_allsamples.g.vcf.gz"
+#    params:
+#        gvcfs = [f'-V /pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/{i}.g.vcf.gz' for i in all_samples],
+#        interval = "-L {chrom}"
+#    shell:
+#        "gatk CombineGVCFs -R {input.fa} {params.interval} {params.gvcfs} -O {output.gvcf} "
+
+#rule get_vcf_bychr:
+#    input:
+#        gvcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/SIS1025f_{chrom}_allsamples.g.vcf.gz",
+#        fa = config["ref_unzip_wdict"]
+#    output:
+#        vcf = "/pellmanlab/stam_niko/data/processed_bam/SIS1025f/Variants/SIS1025f_{chrom}_allsamples.vcf.gz"
+#    params:
+#        interval = "-L {chrom}"
+#    shell:
+#        "gatk GenotypeGVCFs {params.interval} -R {input.fa} -V {input.gvcf} -O {output.vcf} "
+
+#rule variant_calling:
+#    input:
+#        ref = config["ref_unzip_wdict"],
+#        hets = config["alleles"],
+#        bam = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
+#    output:
+#        vcf = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/ASE/{samples}.vcf.gz"
+#    shell:
+#        "gatk Mutect2 -R {input.ref} -I {input.bam} -alleles {input.hets} -O {output.vcf} "
+
+#rule count_reads_allelic:
+#    input:
+#        ref = config["reference_genotyping"],
+#        hets = config["alleles"],
+#        bam = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
+#    output:
+#        vcf = "/pellmanlab/stam_niko/data/processed_bam/{experiment}/Variants/ASE/{samples}.AD.tsv"
+#    shell:
+#        "gatk ASEReadCounter -I {input.bam} -V {input.hets} " # -O {output.vcf}"
+#        "-R {input.ref} -O {output.vcf}"
+
+
+
+
