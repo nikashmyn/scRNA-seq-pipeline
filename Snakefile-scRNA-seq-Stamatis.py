@@ -22,7 +22,7 @@ import snakemake
 ########################
 
 #Could just pull from set working dir. Modular option
-OUTDIR = f'{config["OUTDIR"]}/data/processed_bam'
+OUTDIR = f'{config["OUTDIR"]}/data'
 
 #Threads from config
 DEFAULT_THREADS = int(config["DEFAULT_THREADS"])
@@ -48,6 +48,10 @@ a_samples = set(SIS1025a_samples['samples'])
 SIS1025b_samples = pd.read_table(config["b_samples"], header=0 )
 b_samples = set(SIS1025b_samples['samples'])
 
+#Whole c experiment
+SIS1025c_samples = pd.read_table(config["c_samples"], header=0 )
+c_samples = set(SIS1025c_samples['samples'])
+
 #Whole d experiment
 SIS1025d_samples = pd.read_table(config["d_samples"], header=0 )
 d_samples = set(SIS1025d_samples['samples'])
@@ -63,18 +67,29 @@ f_L1_samples = set(SIS1025f_L1_samples['samples'])
 SIS1025f_L2_samples = pd.read_table(config["f2_samples"], header=0 )
 f_L2_samples = set(SIS1025f_L2_samples['samples'])
 
+#misc early experiments
+SIS1025_misc_samples = pd.read_table(config["misc_samples"], header=0)
+misc_samples = set(SIS1025_misc_samples['samples'])
+
+#targeted MN experiment
+SIS1025_targ_samples = pd.read_table(config["targ_samples"], header=0)
+targ_samples = set(SIS1025_targ_samples['samples'])
+
 #list of experiments sets
-experiments = [ "SIS1025a", "SIS1025b", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2" ]
-samples_set = [a_samples, b_samples, d_samples, e_samples, f_L1_samples, f_L2_samples]
+experiments = [ "SIS1025a", "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025misc", "SIS1025targ" ]
+samples_set = [a_samples, b_samples, c_samples, d_samples, e_samples, f_L1_samples, f_L2_samples, misc_samples, targ_samples]
 
 #All samples
 all_samples = []
 all_samples.extend(a_samples)
 all_samples.extend(b_samples)
+all_samples.extend(c_samples)
 all_samples.extend(d_samples)
 all_samples.extend(e_samples)
 all_samples.extend(f_L1_samples)
 all_samples.extend(f_L2_samples)
+all_samples.extend(misc_samples)
+all_samples.extend(targ_samples)
 
 ########################
 ### INPUT-ONLY RULES ###
@@ -144,7 +159,7 @@ rule generate_genome_indexes:
         in_fasta = config["reference_unzip"], #CHANGE TO V25
         in_gtf = config["reference_gtf_unzip"] #CHANGE TO V25
     output:
-        ref_dir = f"{wkdir}/refgenomes/STAR/Gencode.v25/gencode.v25" #CHANGE TO V25
+        ref_dir = f"{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25" #CHANGE TO V25
     params:
         runMode = "genomeGenerate",
         overhang = config["readlength"] - 1
@@ -160,9 +175,9 @@ rule prep_rsem:
         fasta = config["reference_unzip"],
         gtf = config["reference_gtf_unzip"]
     output:
-        transcriptomedir = f"{wkdir}/refgenomes/RSEM/Gencode.v25/"
+        transcriptomedir = f"{datadir}/refgenomes/RSEM/Gencode.v25/"
     params:
-        transcriptomename = f"{wkdir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
+        transcriptomename = f"{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
     threads: config["MAX_THREADS"]
     shell:
         "rsem-prepare-reference -gtf {input.gtf} -p {threads} --star {input.fasta} {params.transcriptomename} "
@@ -175,14 +190,14 @@ rule prep_rsem:
 #mapping, aligning, tagging and sorting step
 rule STAR_alignment:
     input:
-        R1 = f"{wkdir}/data/all_fastqs/{samples}.demult.bam.qsort.bam.R1.fastq.gz", #Chance to simplify name here
-        R2 = f"{wkdir}/data/all_fastqs/{samples}.demult.bam.qsort.bam.R2.fastq.gz",
-        ref_dir =  "{wkdir}/refgenomes/STAR/Gencode.v25/gencode.v25",
-        gtf = f"{wkdir}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf"
+        R1 = f"{datadir}/all_fastqs/{samples}.R1.fastq.gz", #Chance to simplify name here
+        R2 = f"{datadir}/all_fastqs/{samples}.R2.fastq.gz",
+        ref_dir =  "{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25",
+        gtf = f"{datadir}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf"
     output: #get rid of mockfile by putting one of the output files here and keeping names where it is.
-        mock = f"{wkdir}/data/processed_bam/{experiment}/STAR/.{samples}_mockfile.txt" 
+        mock = f"{OUTDIR}/{experiment}/STAR/.{samples}_mockfile.txt" 
     params:
-        names = f"{wkdir}/data/processed_bam/{experiment}/STAR/{samples}.",
+        names = f"{OUTDIR}/{experiment}/STAR/{samples}.",
         sample = "{samples}"
 #    threads: 4 #config["MAX_THREADS"]
     shell:

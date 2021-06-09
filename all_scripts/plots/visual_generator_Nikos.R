@@ -29,6 +29,7 @@ source(sprintf("%s/plots/calc_and_plot_intermediate_pvalue.R", scriptsdir))
 source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots2.R", scriptsdir))
 source(sprintf("%s/plots/plot_barplots_of_AllelicAndExpBiasPerSamples.R", scriptsdir))
 source(sprintf('%s/plots/plot_cn_and_intermediate_prediction_latest_model_intermediate_bars.R', scriptsdir))
+source(sprintf('%s/plots/plot_pvals_and_tpm_distributions.R', scriptsdir))
 
 #############################Parameters##################################
 
@@ -40,7 +41,7 @@ exclude <- c("113015_T12", "061516_T12", "070516_LookRNAseq", "072516_LookRNAseq
              "071416_LookRNAseq", "161003_LookRNAseq")
 
 #Window size used in models
-NUM_OF_FEATURES <- 50 
+NUM_OF_FEATURES <- 100
 
 ##########################Data for Raw Plots###########################
 message("Loading data...")
@@ -113,53 +114,24 @@ ourpreds <- readRDS(file = sprintf("%s/ML_data/preds.probs_olr_model.WIN%d.rds",
 predicted_samples <- names(ourpreds$preds)
 samples_to_use <- c(intersect(predicted_samples, samples_to_use))
 
-#for (i in 1:length(samples_to_use)) {
-#  myid <- samples_to_use[10]
-#  probs <- ourpreds[["preds"]][[myid]]
-#  preds <- round(probs)
-#  for (i in 1:ncol(preds)) {preds[,i] <- preds[,i]*i}
-#  CN <- rowSums(preds)
-#  avg_CN <- mean(CN)
-#  entry <- cbind(myid, avg_CN)
-#  OLR_preds <- rbind(OLR_preds, entry)
-#}
-
 #Auxiliary ML Data Objects
 interstat.chr <- data.table(readRDS(file = sprintf("%s/ML_data/interstat.chrlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
 interstat.arm <- data.table(readRDS(file = sprintf("%s/ML_data/interstat.armlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
 fracstat <- data.table(readRDS(file = sprintf("%s/ML_data/fracstat.chrlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
 
-##########################Data for Boxcharts###########################
+##########################Data for Barcharts###########################
 message("Loading more data...")
 
 #SSM, MA, and Allelic CN information
 Ms.chr <- readRDS(file = sprintf("%s/CN_data/CN_predictions.bychr.rds", dirpath))
-#dirpath <- "/singlecellcenter/etai/ExperimentsData/RNA/ngs/CNV12.2/"
-#Ms.chr <- readRDS(file = sprintf("%s/CN_predictions.bychr.rds", dirpath))
 
-#Total expression SSM:
-#chr.TE <- copy(Ms.chr$SSM.TE)
-#setnames(chr.TE, old = "seqnames", new = "bin_id")
-#chr.TE <- cbind(chr.TE[,c("bin_id")], 2^(chr.TE[,-c("bin_id")]))
-#chr.TE <- as.data.frame(chr.TE)
-
-#total expression by OLR
-OLR_preds <- cbind(ourpreds[["cns"]][,c(2)], ourpreds[["cns"]][,-c(1:4)])
-OLR_preds_bychr <- OLR_preds %>% 
-  group_by(seqnames) %>%
-  summarise_all(mean, na.rm = TRUE)
+#total expression by chr binned OLR
+OLR_preds_wchr <- cbind(ourpreds[["cns"]][,c(2)], ourpreds[["cns"]][,-c(1:4)])
+OLR_preds_bychr <- OLR_preds_wchr %>% 
+                     group_by(seqnames) %>%
+                       summarise_all(mean, na.rm = TRUE)
 chr.TE <- setnames(OLR_preds_bychr, old = "seqnames", new = "bin_id")
 chr.TE <- as.data.frame(chr.TE)
-
-#Total expression from Normalized TPM
-#chr.TE <- as.data.frame(readRDS(sprintf("%s/aggregated_results/normalized_rsemtpm_bychr.rds", dirpath)))
-#colnames(chr.TE)[1] <- "bin_id"
-
-#Total Expression LGBM
-#chr.TE <- copy(Ms.chr$ML)
-#setnames(chr.TE, old = "seqnames", new = "bin_id")
-#chr.TE <- cbind(chr.TE[,c("bin_id")], (chr.TE[,-c("bin_id")]))
-#chr.TE <- as.data.frame(chr.TE)
 
 #Allele expression (option B (raw aggs by gene)):
 chr.Af <- copy(Ms.chr$raw.A)
@@ -171,7 +143,27 @@ chr.Bf <- cbind(chr.Bf[,1], chr.Bf[,-1]/(chr.Af[, -1] + chr.Bf[, -1]))
 IDs <- intersect(colnames(chr.TE)[-1], colnames(chr.Af[-1]))
 samples_to_use <- c(intersect(samples_to_use, IDs))
 
-#######################################################################
+#########################Data for Pval Plot###########################
+
+#calculate pvals
+source(sprintf("%s/scripts/calculating_pvals_byarm_nikos.R", scriptsdir))
+
+#Add arm level annotations to ourpreds
+preds <- data.table(ourpreds[["cns"]])
+ganno2 <- ganno[,c(1,6:9)]
+preds2 <- setkey(preds, seqnames, start, end, id)
+ganno3 <- setkey(ganno2, seqnames, start, end, id)
+preds3 <- merge(ganno3, preds2)
+OLR_preds_warm <- cbind(preds3[,c("arm")], preds3[,-c(1:5)])
+
+#total expression from OLR binned by arm
+OLR_preds_byarm <- OLR_preds_warm %>% 
+                     group_by(arm) %>%
+                       summarise_all(mean, na.rm = TRUE)
+
+#reorder OLR preds columns like pval matrix
+OLR_preds_byarm <- OLR_preds_byarm[,colnames(pval_matrix_control_byarm)]
+
 
 message("Loading completed!")
 
@@ -180,7 +172,7 @@ message("Loading completed!")
 #################################################################################
 
 require(doParallel)
-registerDoParallel(20)
+registerDoParallel(25)
 
 #Pull information for a given sample from ML prediction object
 get_flat_format_tbl <- function(mysampid) {
@@ -213,6 +205,9 @@ plot_pdf <- function(myid = "170223_A5a", pdfFile = "./", chrs = chrs) {
     plot_raw_data_and_prediction_boxplots2(myid = myid, chr = chr, adt = adt,
                                            nonzeros.zs = nonzeros.zs, coding = coding,
                                            preds = adt_fake, controlSampleIDs = controlSampleIDs)
+    #Plot p-vals, tpm ratio, and OLR prediction boxplots for both arms
+    plot_pvals_and_tpm_distributions(myid=myid, chr=chr, destDir=destDir)
+    
   }
   dev.off()
 }
@@ -221,6 +216,7 @@ plot_pdf <- function(myid = "170223_A5a", pdfFile = "./", chrs = chrs) {
 destDir <- sprintf("%s/visual_results", dirpath)
 system(sprintf("mkdir -p %s", destDir))
 chrs <- c("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr11", "chr12", "chr16", "chr17", "chr19")
+#arms_to_exclude <- c("10q", "13q", 18", "20", "21", "22", "X")
 # 14, 15 have had no p arm values and the rest have intentionally excluded arms 
 
 #Get the samples that can be visualized
@@ -232,7 +228,7 @@ foreach( i = c( 1:length(samples_to_visualize) ) ) %dopar% {
 #foreach( i = c( 1:10 ) ) %dopar% {
     
 #for (i in 1:length(samples_to_visualize)) {}
-#source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots2.R", scriptsdir))
+#source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots_w_2nd_allelic.R", scriptsdir))
 #for (i in 1:2) {
   
   myid <- col_anno$WTA.plate[col_anno$WTA.plate %in% samples_to_use][i]

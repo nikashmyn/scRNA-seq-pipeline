@@ -215,7 +215,8 @@ get_snps_fraction_bins_zscore <- function(th = 10, saveMe = F, generateAlleleDat
   coding$aggs.A.zs <- cbind(coding$aggs.A[, c(1:2)], scale(coding$aggs.A[, -c(1:2)], center = T, scale = T))
   coding$aggs.B.zs <- cbind(coding$aggs.B[, c(1:2)], scale(coding$aggs.B[, -c(1:2)], center = T, scale = T))
   
-  hist((as.matrix(coding$aggs.B.zs[, controlSampleIDs, with=F])), breaks=33, col="seagreen")
+  #Original cmd: hist((as.matrix(coding$aggs.B.zs[, controlSampleIDs, with=F])), breaks=33, col="seagreen")
+  hist((as.matrix(coding$aggs.B.zs[, ..controlSampleIDs])), breaks=33, col="seagreen")
   
   if(saveMe)
     saveRDS(coding, file = sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
@@ -241,6 +242,7 @@ generate_adt_adt0_adt.na_and_nonzeros_data <- function(th = 4, dirpath = "/pellm
   #source('~/WORK/secondaryanalysis/methods_paper_results/R/CNML.R')
   #load_control_data()
   source(sprintf('%s/scripts/fromRawTPMtoExprsRatio.R', scriptsdir))
+  #source(sprintf('%s/scripts/fromRawTPMtoExprsRatio_by_limma.R', scriptsdir))
   rsemtpm <- readRDS(file = sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
   geneRanges <- readRDS(sprintf("%s/aggregated_results/geneRanges.rds", dirpath))
   controlSampleIDs2 <- readRDS(sprintf("%s/aggregated_results/controlSampleIDs2.rds", dirpath))
@@ -383,6 +385,9 @@ compute_nonZero_bins_zscore <- function(saveMe = F, dirpath = "/pellmanlab/stam_
   nonzeros.zs <- scale(nonzeros[, -c(1:2)], center = T, scale = T)
   nonzeros.zs <- cbind(nonzeros[, 1:2], nonzeros.zs)
   
+  #subtract median of chr median fraction of expressed genes option.
+  #nonzeros.zs <- t(t(nonzeros[,-c(1:2)]) - colMedians(as.matrix(nonzeros[, lapply(.SD, median, na.rm = T), .SDcols=-c(1:2), by = "seqnames"][,-c(1)]), na.rm = T))
+  #nonzeros.zs <- cbind(nonzeros[,c(1:2)], nonzeros.zs)
   
   if(saveMe) {
     saveRDS(nonzeros, file = sprintf("%s/aggregated_results/nonzeros.bin50.rds", dirpath))
@@ -392,7 +397,7 @@ compute_nonZero_bins_zscore <- function(saveMe = F, dirpath = "/pellmanlab/stam_
   require(matrixStats)
   hist(rowMedians(as.matrix(nonzeros[, controlSampleIDs, with=F])), breaks=23, col="seagreen")
   hist(rowMedians(as.matrix(nonzeros.zs[, controlSampleIDs, with=F])), breaks=23, col="seagreen")
-  return(nonzeros)
+  return(c(nonzeros, nonzeros.zs))
 }
 
 

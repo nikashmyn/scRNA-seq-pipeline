@@ -24,28 +24,47 @@ rsemtpm <- data.table(rsemtpm[order(seqnames, start, end)])
 tpm <- data.matrix(rsemtpm[,-c(1:6)])
 #cap tpm values in the matrix
 rsemtpm2 <- tpm
-maxExp <- 500 #maximum tpm value from literature
-minExp <- 1.1 #minimum tpm value
-rsemtpm2[rsemtpm2 > maxExp] <- NA
-rsemtpm2[rsemtpm2 < minExp] <- NA
+#maxExp <- 1000 #maximum tpm value from literature
+#minExp <- 5 #minimum tpm value
+#rsemtpm2[rsemtpm2 > maxExp] <- NA
+#rsemtpm2[rsemtpm2 < minExp] <- NA
 
-for (i in 1:ncol(rsemtpm2)) {
-  outliers <- boxplot(rsemtpm2[,i], plot=FALSE)$out
-  index <- which(rsemtpm2[,i] %in% outliers)
-  rsemtpm2[index,i] <- NA
-}
+#for (i in 1:ncol(rsemtpm2)) {
+#  outliers <- boxplot(rsemtpm2[,i], plot=FALSE)$out
+#  index <- which(rsemtpm2[,i] %in% outliers)
+#  rsemtpm2[index,i] <- NA
+#}
 
 #Check the number of values in the correct range
-message("non NAs values = ", sum(!is.na(rsemtpm2)))
+#message("non NAs values = ", sum(!is.na(rsemtpm2)))
 
 #get rows/genes which have nonzero expression in any cell
-wi_rows <- which(rowSums(rsemtpm2, na.rm = T) > 0)
+wi_rows <- which(rowSums(rsemtpm2>5, na.rm = T) > 500)
 #wi_cols <- names(which(colSums(rsemtpm2>5, na.rm = T)>2250))
 #wi_cols <- append(colnames(rsemtpm)[c(1:6)], wi_cols)
 
 #only keep genes with nonzero expression in >1 cell
-rsemtpm3 <- data.table( cbind(rsemtpm[,c(1:6)], rsemtpm2) )
-rsemtpm4 <- data.table(rsemtpm3[wi_rows,]) #..wi_cols
+#rsemtpm3 <- data.table( cbind(rsemtpm[,c(1:6)], rsemtpm2) )
+#rsemtpm4 <- data.table(rsemtpm3[wi_rows,]) #..wi_cols
+
+rsemtpm_red <- rsemtpm2[wi_rows,]
+rsemtpm_anno <- data.table(rsemtpm[wi_rows,c(1:6)]) 
+
+
+#use limma::voom to inverse variance weight RNA-seq counting data
+library(BiocManager)
+BiocManager::install("limma")
+require(limma)
+?limma
+#norm_rsemtpm_red <- calcNormFactors(rsemtpm_red, method="RLE")
+voom_tpm <- limma::voom(rsemtpm_red, normalize.method = "cyclicloess", plot=T)
+#ivw_tpm <- (voom_tpm[["weights"]]*voom_tpm[["E"]]) / (rowSums(voom_tpm[["weights"]]))
+ivw_tpm <- cbind(rsemtpm_anno, voom_tpm[["E"]])
+
+hist(ivw_tpm[,c(450)])
+hist(adt.default[,c("181013A_5H")])
+
+
 
 #Return to just values for log transform
 dm <- data.matrix(rsemtpm4[,-c(1:6)])

@@ -5,8 +5,9 @@
 # Note you can not use variable in PyYaml so these paths must be full
 
 ### Directories ###
-OUTDIR: /pellmanlab/stam_niko #where output data should be stored
-SNAKEDIR: /pellmanlab/nikos/scRNA-seq-pipeline #path to the github repository 
+OUTDIR: /pellmanlab/stam_niko/rerun_6_9_2021 #where output data should be stored
+SNAKEDIR: /pellmanlab/nikos/scRNA-seq-pipeline #path to the github repository clone 
+DATADIR: /pellmanlab/nikos/Stam_Etai_Data #where the reference data is 
 
 ### Specific Software Versions ###
 GATK_path: /pellmanlab/nikos/Stam_Etai_Packages/GATK/current/GenomeAnalysisTK.jar
@@ -35,10 +36,13 @@ alleles: "/pellmanlab/nikos/Stam_Etai_Data/work_in_progress/RPE-1.hets.chr1-X.BA
 samplesdir: /pellmanlab/nikos/scRNA-seq-pipeline/samples
 a_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025a_samples.txt
 b_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025b_samples.txt
+c_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025c_samples.txt
 d_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025d_samples.txt
 e_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025e_samples.txt
 f1_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025f_L1_samples.txt
 f2_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025f_L2_samples.txt
+misc_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/misc_early_samples.txt
+targ_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/targeted_MN_samples.txt 
 
 ### Picard Options ###
 # for configuring picard "max_records_in_ram", determines memory usage 

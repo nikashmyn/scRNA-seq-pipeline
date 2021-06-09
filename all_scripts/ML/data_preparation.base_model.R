@@ -27,8 +27,9 @@ GAIN_TH <- 1.4
 #NUM_OF_FEATURES <- 10 #accuracy of 0.67
 #NUM_OF_FEATURES <- 25 #accuracy of 0.78
 #NUM_OF_FEATURES <- 31 #accuracy of 0.83
-NUM_OF_FEATURES <- 50 #accuracy of 0.88
-#NUM_OF_FEATURES <- 100 #accuracy of 0.963
+#NUM_OF_FEATURES <- 50 #accuracy of 0.88
+#NUM_OF_FEATURES <-  75 #accuracy of .94
+NUM_OF_FEATURES <- 100 #accuracy of 0.963
 number_of_entries_per_instance_for_training <- 150 #an instance is a chromosome in a sample that is used to be sampled for training entries
 downsample_training_frac <- 0.7
 
@@ -218,7 +219,8 @@ message("After balancing strategy we will sample, ", gain_N_entries, " from the 
 
 #let's generate the features data for training and testing:
 get_random_seq <- function(sample_id, arm, size = 20, N = 10, dt, ganno, label = "gain", addQC = F, verbose = F) {
-  mydt <- dt[which(ganno$arm == arm), sample_id, with = F][[1]]
+  #mydt <- dt[which(ganno$arm == arm), sample_id, with = F][[1]]
+  mydt <- dt[which(ganno$arm == arm), ..sample_id][[1]]
   if(verbose)
     message("Working on: ", arm, ", ", sample_id, " with ", length(mydt), " genes")
   if((length(mydt) - size + 1) < N) {

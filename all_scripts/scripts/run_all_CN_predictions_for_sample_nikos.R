@@ -77,11 +77,15 @@ predict_CN <- function(mysample_id, outfname) {
   ########## RUNNING MA ###################################
   run_my_MA <- function(MA_winSize = 100) {
     chrsToExcludeFromNormalization = c("chrX", "chrM", "chr10")
-    MA <- adt[, lapply(.SD, rollmean, k = MA_winSize, fill = "extend", align = "center"),
+    MA <- adt[, lapply(.SD, rollapply, width = MA_winSize, FUN=mean, partial = T, align = "center"), # fill = NA_real_ 
               .SDcols = mysample_id, by = seqnames]
+    # MA <- adt[, lapply(.SD, rollmean, k = MA_winSize, fill = "extend" , align = "center"),
+              #.SDcols = mysample_id, by = seqnames]
+    # if you reduce the number genes some arms/chrs dont even have enough genes for one window size.So it returns a logical == FAlSE
+    # I switched to rollapply because it allows for partial windows
     dtm <- MA[, lapply(.SD, median),
               .SDcols = -1, by = "seqnames"]
-    myCellMedians <- colMedians(as.matrix(dtm[!(seqnames %in%chrsToExcludeFromNormalization), -1]))
+    myCellMedians <- colMedians(as.matrix(dtm[!(seqnames %in% chrsToExcludeFromNormalization), -1]))
     
     MA2 <- 2^sweep(MA[,-1], 2, myCellMedians, "-")
     

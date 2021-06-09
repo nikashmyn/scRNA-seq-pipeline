@@ -4,13 +4,14 @@
 dstdir <- sprintf("%s/ML_data", dirpath)
 
 normalize_expression <- T
-NUM_OF_FEATURES <- 50 
+NUM_OF_FEATURES <- 100 #50
 
 base_model_fname <- sprintf("%s/NN/base_model_v1.WIN%d.tf", dirpath, NUM_OF_FEATURES)
 base_model_avg_fname <- sprintf("%s/NN/base_model_v1.AVG%d.tf", dirpath, NUM_OF_FEATURES)
 olr_model_fname <- sprintf("%s/NN/olr_model_v1.AVG%d.rds", dirpath, NUM_OF_FEATURES)
 
 olr_model <- readRDS(olr_model_fname)
+#olr_model <- load_model_tf(base_model_fname)
 
 arms <- copy(ganno) # <- readRDS(file = sprintf("%s/aggregated_results/ganno.rds", dirpath))
 
@@ -30,8 +31,8 @@ if(normalize_expression == T) {
 generate_features <- function(sample_id = "170512_B8", adt, winSize = NUM_OF_FEATURES) {
   myadt <- copy(adt[, c(colnames(adt)[1:4], sample_id), with=F])
   ftrs <- lapply(unique(myadt$seqnames), function(chr) 
-    data.table(rollapply(data = myadt[seqnames == chr][[sample_id]], 
-                         width = winSize, FUN = identity, fill = NA, align = "center")))
+                 data.table(rollapply(data = myadt[seqnames == chr][[sample_id]], partial = T, #added partial
+                                      width = winSize, FUN = identity, fill = NA, align = "center")))
   ftrs <- cbind(myadt[,1:4], rbindlist(ftrs))
   return(ftrs)
 }
@@ -39,20 +40,20 @@ generate_features <- function(sample_id = "170512_B8", adt, winSize = NUM_OF_FEA
 #Using the OLR model:
 model <- olr_model
 
-generate_features_and_run_integer_cn_predictions_for_multiple_samples <- function(adt, winSize = NUM_OF_FEATURES, FUN = "mean") {
-  ftrs <- adt[, lapply(.SD, rollapply, width = winSize, FUN = FUN, fill = NA, align = "center"),
-              .SDcols = names(adt)[-c(1:4)], by = seqnames]
-
-  tmp <- ftrs[, lapply(.SD, function(x) as.numeric(predict(object = model, data.table(x = x)))), .SDcols = names(ftrs)[-1]]
-  preds <- cbind(adt[,1:4], tmp)
-
-  return(preds)
-}
+#generate_features_and_run_integer_cn_predictions_for_multiple_samples <- function(adt, winSize = NUM_OF_FEATURES, FUN = "mean") {
+#  ftrs <- adt[, lapply(.SD, rollapply, width = winSize, FUN = FUN, fill = NA, align = "center"),
+#              .SDcols = names(adt)[-c(1:4)], by = seqnames]
+#
+#  tmp <- ftrs[, lapply(.SD, function(x) as.numeric(predict(object = model, data.table(x = x)))), .SDcols = names(ftrs)[-1]]
+#  preds <- cbind(adt[,1:4], tmp)
+#
+#  return(preds)
+#}
 
 #prediction of CN and CN probabilities:
 #--------------------------------------
 generate_features_and_run_integer_cn_predictions_for_multiple_samples <- function(adt, winSize = NUM_OF_FEATURES, FUN = "mean") {
-  ftrs <- adt[, lapply(.SD, rollapply, width = winSize, FUN = FUN, fill = NA, align = "center"),
+  ftrs <- adt[, lapply(.SD, rollapply, width = winSize, FUN = FUN, fill = NA, partial = T, align = "center"),  #added partial
               .SDcols = names(adt)[-c(1:4)], by = seqnames]
   
   tmp <- ftrs[, lapply(.SD, function(x) as.numeric(predict(object = model, data.table(x = x)))), .SDcols = names(ftrs)[-1]]
@@ -60,10 +61,11 @@ generate_features_and_run_integer_cn_predictions_for_multiple_samples <- functio
   
   return(preds)
 }
+
 ourcns <- generate_features_and_run_integer_cn_predictions_for_multiple_samples(adt = adt)
 
 #changed FUN = FUN -> "mean" and width = winSize -> "mean"
-ourftrs <- adt[, lapply(.SD, rollapply, width = NUM_OF_FEATURES, FUN = "mean", fill = NA, align = "center"),
+ourftrs <- adt[, lapply(.SD, rollapply, width = NUM_OF_FEATURES, FUN = "mean", fill = NA, partial = T, align = "center"), #added partial
                .SDcols = names(adt)[-c(1:4)], by = seqnames]
 
 ourprobs <- lapply(samples_to_use, function(i) predict(object = model, data.table(x = ourftrs[[i]]), type = "p"))

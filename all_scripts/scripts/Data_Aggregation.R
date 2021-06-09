@@ -201,3 +201,17 @@ source(sprintf("%s/scripts/run_all_CN_predictions_for_sample_nikos.R", scriptsdi
 
 #ready to run "Run_ML.R" script
 print("Done")
+
+
+### Experimentation ###
+adt <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.rds", dirpath)))
+adt <- adt.default <- adt[order(seqnames, start, end)]
+adt <- cbind( adt[,c(1:4)], setcolorder(adt[,-c(1:4)], order(colnames(adt[,-c(1:4)]))) )
+
+hist(adt[,c(25)])
+hist(adt_old_quantile_nocent[,c("170119_A3")])
+hist(adt_old_cyclicloss[,c("170119_A3")])
+hist(adt_old[,c("170119_A3")])
+hist(log2(rsemtpm[,c("170119_A3")]+1), xlim = c(0,20)) 
+
+controlSampleIDs
