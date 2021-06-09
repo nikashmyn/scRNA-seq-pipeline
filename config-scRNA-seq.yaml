@@ -2,7 +2,7 @@
 ### Configfile for Snakefile-scRNA-seq in YAML ###
 ##################################################
 
-# Note you can not use variable in PyYaml so these paths must be full
+# Note you can not use variables in PyYaml so these paths must be full
 
 ### Directories ###
 OUTDIR: /pellmanlab/stam_niko/rerun_6_9_2021 #where output data should be stored
