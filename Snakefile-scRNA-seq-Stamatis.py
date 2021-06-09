@@ -2,6 +2,8 @@
 ####### Snakefile for scRNA-seq (Stamatis Specific) #######
 ###########################################################
 
+#hello
+
 os.chdir(config["OUTDIR"])
 wkdir = config["OUTDIR"]
 skdir = config["SNAKEDIR"]
