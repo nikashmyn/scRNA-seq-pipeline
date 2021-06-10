@@ -5,6 +5,7 @@
 os.chdir(config["OUTDIR"]) #change the working directory to the outdir from config
 skdir = config["SNAKEDIR"] #pull locations of the git clone from config 
 OUTDIR = f'{config["OUTDIR"]}/data' #add buffer data directory at outdir from config
+datadir = config["DATADIR"]
 
 #TODO: Fix config['MAX_THREADS'] issue where it is setting it to 1 rather than 16
 
@@ -186,15 +187,15 @@ rule prep_rsem:
 #mapping, aligning, tagging and sorting step
 rule STAR_alignment:
     input:
-        R1 = f"{datadir}/all_fastqs/{samples}.R1.fastq.gz", #Chance to simplify name here
-        R2 = f"{datadir}/all_fastqs/{samples}.R2.fastq.gz",
-        ref_dir =  "{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25",
-        gtf = f"{datadir}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf"
+        R1 = [expand("{datadir}/all_fastqs/{samples}.R1.fastq.gz", datadir=datadir, samples=all_samples)], #Chance to simplify name here
+        R2 = [expand("{datadir}/all_fastqs/{samples}.R2.fastq.gz", datadir=datadir, samples=all_samples)],
+        ref_dir =  f"{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25",
+        gtf = f'{datadir}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf',
     output: #get rid of mockfile by putting one of the output files here and keeping names where it is.
-        mock = f"{OUTDIR}/{experiment}/STAR/.{samples}_mockfile.txt" 
+        mock = [expand("{OUTDIR}/{experiment}/STAR/.{samples}_mockfile.txt", OUTDIR=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
     params:
-        names = f"{OUTDIR}/{experiment}/STAR/{samples}.",
-        sample = "{samples}"
+        names = [expand("{OUTDIR}/{experiment}/STAR/{samples}.", OUTDIR=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
+        sample = expand("{samples}", samples=all_samples)
 #    threads: 4 #config["MAX_THREADS"]
     shell:
         """
@@ -239,12 +240,12 @@ rule STAR_alignment:
 #Prep bam for RSEM post-processing
 rule rsem_prep_bam:
     input:
-        mock_in = f"{OUTDIR}/{experiment}/STAR/.{samples}_mockfile.txt"
+        mock_in = "{path}/{experiment}/STAR/.{samples}_mockfile.txt"
     output:
-        mock = f"{OUTDIR}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.mock.txt"
+        mock = "{path}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.mock.txt"
     params:
-        bam_in = f"{OUTDIR}/{experiment}/STAR/{samples}.Aligned.toTranscriptome.out.bam",
-        bam_out_name = f"{OUTDIR}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out"
+        bam_in = "{path}/{experiment}/STAR/{samples}.Aligned.toTranscriptome.out.bam",
+        bam_out_name = "{path}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out"
     #threads: 4
     shell:
         "convert-sam-for-rsem {params.bam_in} {params.bam_out_name} " #correct bam format for rsem
@@ -253,13 +254,13 @@ rule rsem_prep_bam:
 #Run RSEM calculations
 rule rsem_calc_expr:
     input:
-        mock_in = f"{OUTDIR}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.mock.txt"
+        mock_in = "{path}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.mock.txt"
     output:
-        mock = f"{OUTDIR}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt"
+        mock = "{path}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt"
     params:
-        bam_in = f"{OUTDIR}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out.bam",
-        ref_name = f"{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
-        sample_name = f"{OUTDIR}/{experiment}/RSEM/output/{samples}",
+        bam_in = "{path}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out.bam",
+        ref_name = "{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
+        sample_name = "{path}/{experiment}/RSEM/output/{samples}",
         options = "--paired-end --no-bam-output --estimate-rspd ", #--calc-pme", #works for 99.9% of samples but some are too small for pme # --calc-ci ", calc-ci giving error maybe bug in version
 #        tmp = "--temporary-folder /pellmanlab/stam_niko/data/tmp/"
     #threads: 4
