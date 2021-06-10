@@ -192,9 +192,9 @@ rule STAR_alignment:
         ref_dir =  f"{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25",
         gtf = f'{datadir}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf',
     output: #get rid of mockfile by putting one of the output files here and keeping names where it is.
-        mock = [expand("{OUTDIR}/{experiment}/STAR/.{samples}_mockfile.txt", OUTDIR=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
+        mock = [expand("{path}/{experiment}/STAR/.{samples}_mockfile.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
     params:
-        names = [expand("{OUTDIR}/{experiment}/STAR/{samples}.", OUTDIR=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
+        names = [expand("{path}/{experiment}/STAR/{samples}.", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
         sample = expand("{samples}", samples=all_samples)
 #    threads: 4 #config["MAX_THREADS"]
     shell:
@@ -276,13 +276,13 @@ rule rsem_calc_expr:
 #Collect multiple metrics for each bam file
 rule collect_mult_metrics:
     input:
-        mock = f"{OUTDIR}/{experiment}/STAR/.{samples}_mockfile.txt"
+        mock = "{path}/{experiment}/STAR/.{samples}_mockfile.txt"
     output:
-        metrics = f"{OUTDIR}/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics"
+        metrics = "{path}/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics"
     params:
         ref_fasta = config["reference_unzip"],
-        bam_in = f"{OUTDIR}/{experiment}/STAR/{samples}.Aligned.sortedByCoord.out.bam",
-        metrics = f"{OUTDIR}/{experiment}/Metrics/{samples}.MultipleMetrics"
+        bam_in = "{path}/{experiment}/STAR/{samples}.Aligned.sortedByCoord.out.bam",
+        metrics = "{path}/{experiment}/Metrics/{samples}.MultipleMetrics"
     shell:
         "picard CollectMultipleMetrics I={params.bam_in} O={params.metrics} R={params.ref_fasta} "
         
@@ -293,12 +293,12 @@ rule collect_mult_metrics:
 #reads that are "split", subread segments aligned to multiple locations, are aligned to one location with the rest of the read parts being hardclipped. 
 rule splitncigarreads:
     input:
-        mock_in = f"{OUTDIR}/{experiment}/STAR/.{samples}_mockfile.txt",
+        mock_in = "{path}/{experiment}/STAR/.{samples}_mockfile.txt",
         ref = config["ref_unzip_wdict"] 
     output:
-        bam_out = f"{OUTDIR}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam" 
+        bam_out = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam" 
     params:
-        bam_in =  f"{OUTDIR}/{experiment}/STAR/{samples}.Aligned.sortedByCoord.out.bam",
+        bam_in =  "{path}/{experiment}/STAR/{samples}.Aligned.sortedByCoord.out.bam",
         options = "--create-output-bam-index true", # --read-filter ReassignOneMappingQuality", # -RMQF 255 -RMQT 60",
         intervals = chrom_intervals
     shell:
@@ -308,9 +308,9 @@ rule splitncigarreads:
 #add read group information and calc tags as annotations. These annotations are used in the variant calling later. 
 rule AddOrReplaceRG:
     input:
-        bam = f"{OUTDIR}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam"
+        bam = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam"
     output:
-        bam_out = f"{OUTDIR}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
+        bam_out = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
     params:
         SM = "{samples}".split('.')[0],
     shell:
@@ -320,27 +320,27 @@ rule AddOrReplaceRG:
 #After being annotated with read groups etc the new file needs to be reindexed.
 rule index_RG_bams:
     input:
-        bam = f"{OUTDIR}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
+        bam = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam"
     output:
-        bam_out = f"{OUTDIR}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai"
+        bam_out = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai"
     shell:
         "samtools index {input.bam} "
 
 #Annotated indexed bams are now ready to be variant called with unified genotyper (UG). This script writes files with the UG calls. UG is fastest because it doesn't construct allles like heplotype caller.
 rule etai_genotype_generate_call:
     input:
-        [expand("{OUTDIR}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", OUTDIR=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
+        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
     output:
-        mockfile = f"{OUTDIR}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt"
+        mockfile = "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt"
     params:
-        ls = f"{OUTDIR}/{experiment}/VarCall_BAMs/*RG.out.bam",
+        ls = "{path}/{experiment}/VarCall_BAMs/*RG.out.bam",
         hets = config["alleles"],
         ref = config["ref_unzip_wdict"],
         GATK = config["GATK_path"],
         Picard = config["Picard_path"],
-        bamlist = f"{OUTDIR}/{experiment}/VarCall_BAMs/{experiment}.bamfiles.list",
-        script = f"{skdir}/all_scripts/scripts/RPE-1_GRCh38_Genotype_nikos.sh", #*_etai.sh
-        out_name = f"{OUTDIR}/{experiment}/Variants/{experiment}"
+        bamlist = "{path}/{experiment}/VarCall_BAMs/{experiment}.bamfiles.list",
+        script = "{skdir}/all_scripts/scripts/RPE-1_GRCh38_Genotype_nikos.sh", #*_etai.sh
+        out_name = "{path}/{experiment}/Variants/{experiment}"
     shell:
         "ls {params.ls} > {params.bamlist} "
         "&& bash {params.script} {params.bamlist} {params.out_name} 1 {params.ref} {params.hets} {params.GATK} {params.Picard} "
@@ -349,13 +349,13 @@ rule etai_genotype_generate_call:
 #Now the the files with UG calls are ready we can parallelize the runs. These UG calls create one vcf file (for each chr) from all the bams in the experiment.
 rule etai_genotype_run:
     input:
-        f"{OUTDIR}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt",
+        "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt",
     output:
-        f"{OUTDIR}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt"
+        "{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt"
     params:
-        f"{OUTDIR}/{experiment}/Variants/{experiment}_RPE_hets_GT.UG_jobs.{chrs}.sh"
+        "{path}/{experiment}/Variants/{experiment}_RPE_hets_GT.UG_jobs.{chrs}.sh"
     log:
-        f"{OUTDIR}/{experiment}/Variants/{experiment}.rungenotypecmds.{chrs}.log"
+        "{path}/{experiment}/Variants/{experiment}.rungenotypecmds.{chrs}.log"
     # threads: 25 # didnt put {threads} below because I want the jobs to always be 25 for this part no matter what I put in cmd line
     shell:
         "sh {params} 2> {log} " # "parallel --jobs {threads} < {params} "
@@ -368,9 +368,9 @@ rule etai_genotype_run:
 #Before moving on to the analysis we check the required files have been created. 
 rule check_data:
     input:
-        [expand("{OUTDIR}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", OUTDIR=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
-        [expand("{OUTDIR}/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", OUTDIR=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
-        expand("{OUTDIR}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", OUTDIR=OUTDIR, experiment=experiments, chrs=chroms),
+        [expand("{path}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
+        [expand("{path}/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
+        expand("{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", path=OUTDIR, experiment=experiments, chrs=chroms),
     output:
         mock_out = f"{OUTDIR}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt"
     shell:
@@ -379,9 +379,9 @@ rule check_data:
 #We now use this script to aggregate the data into R matrices for each experiment.
 rule aggregate_data:
     input:
-        mock_in = [expand("{OUTDIR}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", OUTDIR=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
+        mock_in = [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
     output:
-        mock_out = f"{OUTDIR}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
+        mock_out = "{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
     params:
         script_dir = f"{skdir}/all_scripts",
         expr = "{experiment}",
@@ -397,7 +397,7 @@ rule aggregate_data:
 #At the end of this script SSM and MA models are run on the aggregated matrices. 
 rule aggregate_data_macro_and_models:
     input:
-        mock_in = [expand("{OUTDIR}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", OUTDIR=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))],
+        mock_in = [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))],
     output:
         mock_out = f"{OUTDIR}/aggregated_results/.mockfile.data_aggregation_macro.txt", 
     params:
