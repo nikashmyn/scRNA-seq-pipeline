@@ -11,3 +11,4 @@
 !all_scripts/scripts/*
 !all_scripts/ML/*
 !all_scripts/plots/*
+!R-packages-to-download.txt
