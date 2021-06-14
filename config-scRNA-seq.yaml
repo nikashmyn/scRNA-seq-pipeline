@@ -14,9 +14,9 @@ GATK_path: /pellmanlab/nikos/Stam_Etai_Packages/GATK/current/GenomeAnalysisTK.ja
 Picard_path: /pellmanlab/nikos/Stam_Etai_Packages/picard/current/bin/picard.jar
 
 ### Reference Genomes ### 
-reference_unzip: /pellmanlab/stam_niko/refgenomes/Gencode/v25/GRCh38.primary_assembly.genome.fa
-ref_unzip_wdict: /pellmanlab/stam_niko/refgenomes/Gencode/v25/wdict/GRCh38.primary_assembly.genome.fa
-reference_gtf_unzip: /pellmanlab/stam_niko/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf
+reference_unzip: /pellmanlab/nikos/Stam_Etai_Data/refgenomes/Gencode/v25/GRCh38.primary_assembly.genome.fa
+ref_unzip_wdict: /pellmanlab/nikos/Stam_Etai_Data/refgenomes/Gencode/v25/wdict/GRCh38.primary_assembly.genome.fa
+reference_gtf_unzip: /pellmanlab/nikos/Stam_Etai_Data/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf
 readlength: 100
 
 ### Reference RPE-1 Data ###

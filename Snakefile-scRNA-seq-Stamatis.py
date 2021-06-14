@@ -95,6 +95,9 @@ all_samples.extend(targ_samples)
 #    input:
 #        starindex = "/pellmanlab/stam_niko/refgenomes/STAR/Gencode.v25/", #SAindex",
 #        rsemindex = "/pellmanlab/stam_niko/refgenomes/RSEM/Gencode.v25/" #genecode.v25"
+rule run_pipeline:
+    input:
+        expand("{path}/visual_results/.mockfile.visuals.txt", path=OUTDIR)
 
 rule align:
     input:
@@ -187,15 +190,20 @@ rule prep_rsem:
 #mapping, aligning, tagging and sorting step
 rule STAR_alignment:
     input:
-        R1 = [expand("{datadir}/all_fastqs/{samples}.R1.fastq.gz", datadir=datadir, samples=all_samples)], #Chance to simplify name here
-        R2 = [expand("{datadir}/all_fastqs/{samples}.R2.fastq.gz", datadir=datadir, samples=all_samples)],
+        R1 = "%s/all_fastqs/%s.R1.fastq.gz" % (datadir, "{samples}"),         
+        R2 = "%s/all_fastqs/%s.R2.fastq.gz" % (datadir, "{samples}"),
+        #R1 = [expand("{datadir}/all_fastqs/{samples}.R1.fastq.gz", datadir=datadir, samples=all_samples)], #Chance to simplify name here
+        #R2 = [expand("{datadir}/all_fastqs/{samples}.R2.fastq.gz", datadir=datadir, samples=all_samples)],
         ref_dir =  f"{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25",
         gtf = f'{datadir}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf',
     output: #get rid of mockfile by putting one of the output files here and keeping names where it is.
-        mock = [expand("{path}/{experiment}/STAR/.{samples}_mockfile.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
+        mock = "{path}/{experiment}/STAR/.{samples}_mockfile.txt"
+        #mock = [expand("{path}/{experiment}/STAR/.{samples}_mockfile.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
     params:
-        names = [expand("{path}/{experiment}/STAR/{samples}.", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
-        sample = expand("{samples}", samples=all_samples)
+        names = "{path}/{experiment}/STAR/{samples}.",
+        #names = [expand("{path}/{experiment}/STAR/{samples}.", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
+        sample = "{samples}"
+        #sample = expand("{samples}", samples=all_samples)
 #    threads: 4 #config["MAX_THREADS"]
     shell:
         """
@@ -259,7 +267,7 @@ rule rsem_calc_expr:
         mock = "{path}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt"
     params:
         bam_in = "{path}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out.bam",
-        ref_name = "{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
+        ref_name = f"{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
         sample_name = "{path}/{experiment}/RSEM/output/{samples}",
         options = "--paired-end --no-bam-output --estimate-rspd ", #--calc-pme", #works for 99.9% of samples but some are too small for pme # --calc-ci ", calc-ci giving error maybe bug in version
 #        tmp = "--temporary-folder /pellmanlab/stam_niko/data/tmp/"
@@ -329,7 +337,7 @@ rule index_RG_bams:
 #Annotated indexed bams are now ready to be variant called with unified genotyper (UG). This script writes files with the UG calls. UG is fastest because it doesn't construct allles like heplotype caller.
 rule etai_genotype_generate_call:
     input:
-        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
+        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))] #I think this could be done with out list comp as in alignment step ^
     output:
         mockfile = "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt"
     params:
@@ -339,7 +347,7 @@ rule etai_genotype_generate_call:
         GATK = config["GATK_path"],
         Picard = config["Picard_path"],
         bamlist = "{path}/{experiment}/VarCall_BAMs/{experiment}.bamfiles.list",
-        script = "{skdir}/all_scripts/scripts/RPE-1_GRCh38_Genotype_nikos.sh", #*_etai.sh
+        script = f"{skdir}/all_scripts/scripts/RPE-1_GRCh38_Genotype_nikos.sh", #*_etai.sh
         out_name = "{path}/{experiment}/Variants/{experiment}"
     shell:
         "ls {params.ls} > {params.bamlist} "
@@ -372,7 +380,7 @@ rule check_data:
         [expand("{path}/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
         expand("{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", path=OUTDIR, experiment=experiments, chrs=chroms),
     output:
-        mock_out = f"{OUTDIR}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt"
+        mock_out = "{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt"
     shell:
         "touch {output.mock_out}"
 

@@ -17,7 +17,8 @@ source( sprintf('%s/scripts/generate_baseline_datasets_for_ML_and_stats_analysis
 source( sprintf('%s/plots/class_prob_to_cn_level.R', scriptsdir) )
 
 #new annotation lists are not comprehensive. So older versions are needed for all samples.
-anno <- data.table(readRDS( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_210129.rds", datadir) ))
+#anno <- data.table(readRDS( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_210129.rds", datadir) ))
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_11_6_21.csv", datadir)))
 
 #centromeres object is called inside AddFeaturesandPhasing function
 centromeres <- readRDS( sprintf("%s/centromeres.rds", datadir) )
@@ -203,15 +204,15 @@ source(sprintf("%s/scripts/run_all_CN_predictions_for_sample_nikos.R", scriptsdi
 print("Done")
 
 
-### Experimentation ###
-adt <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.rds", dirpath)))
-adt <- adt.default <- adt[order(seqnames, start, end)]
-adt <- cbind( adt[,c(1:4)], setcolorder(adt[,-c(1:4)], order(colnames(adt[,-c(1:4)]))) )
 
-hist(adt[,c(25)])
-hist(adt_old_quantile_nocent[,c("170119_A3")])
-hist(adt_old_cyclicloss[,c("170119_A3")])
-hist(adt_old[,c("170119_A3")])
-hist(log2(rsemtpm[,c("170119_A3")]+1), xlim = c(0,20)) 
-
-controlSampleIDs
+#test_samples <- read.table("/pellmanlab/nikos/scRNA-seq-pipeline/samples/all_samples.txt")
+#tmp <- rbindlist(lapply(1:length(anno$Fastq_files), function(i)  {
+#  res <- grep(pattern = sprintf("_%s_", anno$Fastq_files[i]), ignore.case = T, value=T, x = test_samples$V1)
+#  if (length(res) < 1) {  res <- test_samples$V1[which(test_samples$V1 %in% anno$Fastq_files[i])] }
+#  if (length(res)>1) {
+#    res1 <- grep(pattern = "_Lane1_", ignore.case = T, value=T, x = res)
+#    res2 <- grep(pattern = "_Lane2_", ignore.case = T, value=T, x = res)
+#    #if (NA %in% c(res1, res2)) {data.table(raw_ID = res, ID = anno$Fastq_files[i])}
+#    data.table( raw_ID = c(res1, res2), ID = c( sprintf("%s_Lane1", anno$Fastq_files[i]), sprintf("%s_Lane2", anno$Fastq_files[i]) ))
+#  } else {data.table(raw_ID = res, ID = anno$Fastq_files[i])}}))
+#write.csv(tmp, sprintf("/pellmanlab/nikos/scRNA-seq-pipeline/samples/all_fastq_w_names.csv"))
