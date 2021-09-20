@@ -28,7 +28,9 @@ adt_noanno <- sweep(adt_noanno, 2, means, '/')
 #add arm annotation to adt
 adt_anno <- cbind(ganno_ord, adt_noanno)
 adt_arm <- cbind(adt_anno$arm, adt_anno[,-c(1:9)])
-colnames(adt_arm)[1] <- "arm"
+setnames(adt_arm, "V1", "arm")
+#colnames(adt_arm)[1] <- "arm"
+
 
 ### group adt object by arm ###
 adt_byarm <- adt_arm %>% 

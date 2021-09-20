@@ -79,9 +79,11 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("170209_A5", "1
     #merging all 4 alternatives:
     ccp <- unique(rbindlist(list(A, B, mid)))
     ccp$bin_id <- factor(ccp$bin_id, levels = unique(mixedsort(ccp$bin_id)))
+    
     return(ccp)
   }
   
+
   ids <- intersect(ids, colnames(dfs))
   if(length(ids) == 0)
     return(NA)

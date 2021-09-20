@@ -7,8 +7,7 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
   #adt_byarm, OLR_preds_byarm, golden_tpms
   pval_matrix_control_byarm <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_control_byarm.rds", dirpath))
   pval_matrix_gain_byarm <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_gain_byarm.rds", dirpath))
-  
-  
+  pval_matrix_loss_byarm <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_loss_byarm.rds", dirpath))
   
   #save parameters from previous plot in order to revert after this plot
   par.before <- par()
@@ -33,8 +32,9 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
   
   #main data to be plotted byarm
   boxplots.vals <- c()
-  boxplots.vals$loss <- golden_tpms$loss_byarm$tpm; boxplots.vals$normal <- golden_tpms$normal_byarm$tpm; boxplots.vals$gain <- golden_tpms$gain_byarm$tpm;
-  boxplots.vals$control <- golden_tpms$control_byarm$tpm; boxplots.vals$control_arm_specific <- golden_tpms$control_byarm[which(golden_tpms$control_byarm$arm %in% arms),]$tpm
+  #right here FIXXXXXXXXXXXXXXXX
+  boxplots.vals$loss <- golden_samples$loss_byarm$tpm; boxplots.vals$normal <- golden_samples$normal_byarm$tpm; boxplots.vals$gain <- golden_samples$gain_byarm$tpm;
+  boxplots.vals$control <- golden_samples$control_byarm$tpm; boxplots.vals$control_arm_specific <- golden_samples$control_byarm[which(golden_samples$control_byarm$arm %in% arms),]$tpm
   dist_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen", "lightgreen")
   point_colors <- c("orange", "yellow")
   
@@ -44,7 +44,7 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
     
     i = myid 
     j = which(adt_byarm$arm %in% arms[k])
-    boxplots.vals$control_arm_specific <- golden_tpms$control_byarm[which(golden_tpms$control_byarm$arm %in% arms[k]),]$tpm
+    boxplots.vals$control_arm_specific <- golden_samples$control_byarm[which(golden_samples$control_byarm$arm %in% arms[k]),]$tpm
     
     #plot dist of arm wide average TPMs for each CN state as labeled in golden set 
     boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Arm Average TPM",

@@ -1,6 +1,6 @@
 #running all type of predictions for a sample
 
-require(data.table)
+#require(data.table)
 require(zoo)
 
 message("Loading data..")
@@ -24,13 +24,30 @@ controlSampleIDs2 <- readRDS(sprintf("%s/aggregated_results/controlSampleIDs2.rd
 controlSampleIDs <- readRDS(sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
 rsemtpm <- readRDS(file = sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
 #ASE <- readRDS(file = sprintf("%s/data/ASE.rds", dirpath))
-coding <- readRDS(file = sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
-high_qc_ids <- names(which(colSums(rsemtpm>5)>4000))
 nonzeros.zs <- readRDS(file = sprintf("%s/aggregated_results/nonzeros.zs.bin50.rds", dirpath))
 
-col_anno <- data.table(readRDS( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_210129.rds", datapath) ))
+#get samples to run based on samples in df
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
+columns <- colnames(adt)[-c(1:4)]
+samples_to_use <- c(intersect(columns, anno$WTA.plate))
+
+#get high quality samples from raw tpm values
+all_QC <- readRDS(file = sprintf("%s/aggregated_results/all_QC.rds", dirpath))
+#high_qc_ids <- as.character(all_QC[which(all_QC$th5 >= quantile(all_QC$th5, c(.10))),]$id)
+#high_qc_ids <- intersect(high_qc_ids, samples_to_use)
+
+#Variant matrix in the coding and UTR regions
+coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
+#Low var counts exclusion. Note: both distributions of var counts are fairly similar.
+#high_varqc_idsA <- names(which(colSums(coding$cnts.A[,-c(1:2)]) > quantile(colSums(coding$cnts.A[,-c(1:2)]), c(.10))))
+#high_varqc_idsB <- names(which(colSums(coding$cnts.B[,-c(1:2)]) > quantile(colSums(coding$cnts.B[,-c(1:2)]), c(.10))))
+#high_varqc_ids <- intersect(high_varqc_idsA, high_varqc_idsB)
+#high_qc_ids <- intersect(high_qc_ids, high_varqc_ids)
+
+#Get annotation list of all samples that are in adt (tpm ratio) object
+col_anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
 dim(col_anno)
-col_anno <- col_anno[ WTA.plate %in% high_qc_ids]
+col_anno <- col_anno[ WTA.plate %in% samples_to_use]
 dim(col_anno)
 col_anno[Pairs == "NA", Pairs := NA]
 
@@ -155,9 +172,13 @@ inputdir <- CNdir
 Ms <- list()
 
 files <- list.files(path = inputdir, pattern = "*all_CN_predictions.rds", full.names = T)
+files_names <- strsplit(basename(files), ".", fixed = T)
+file_names <- unlist(lapply(files_names, `[[`, 1))
 
+wta.names <- c(col_anno[,1])[[1]]
 row_anno_col <- c("id", "seqnames", "arm", "start", "end")
-col <- append(c("id", "seqnames", "start", "end"),  col_anno$WTA.plate)
+col <- append(c("id", "seqnames", "start", "end"),  t(col_anno[,1]))
+col <- as.character(col)
 
 preds <- readRDS(files[1])
 
@@ -165,10 +186,11 @@ preds <- readRDS(files[1])
 #TODO: add allele fraction from coding$A and B at the chr and arm level
 
 snpstotake <- which(rowSums(coding$A[, controlSampleIDs, with=F])>=10 | rowSums(coding$B[, controlSampleIDs, with=F])>=10)
-length(snpstotake)
 
-A <- copy(coding$A[snpstotake, ..col])
-B <- copy(coding$B[snpstotake, ..col])
+A <- as.data.frame(coding$A)[snpstotake, col] #copy()
+B <- as.data.frame(coding$B)[snpstotake, col] #copy()
+A <- data.table(A) #coding$A[snpstotake, col, with=TRUE] #copy()
+B <- data.table(B) #[snpstotake, col, with=TRUE] #copy()
 
 setkeyv(ganno, cols = c("seqnames", "start", "end"))
 setkeyv(A, cols = c("seqnames", "start", "end"))
@@ -205,14 +227,15 @@ preds_to_agg <- c( "MA50", "MA75", "MA100", "SSM.TE")
 agg_samples <- function(file, col_name = "MA50") {
   preds <- readRDS(file)
   mypreds <- preds[, col_name, with = F]
-  setnames(mypreds, old = col_name, new = file)
+  name <- file_names[which(files == file)]
+  setnames(mypreds, old = col_name, new = name)
   return(mypreds)
 }
 
 tt <- lapply(preds_to_agg, function(x)  cbind(B4[, row_anno_col, with = F], do.call(cbind, lapply(files, agg_samples, col_name = x))))
 names(tt) <- preds_to_agg
-for ( i in 1:length(tt) ) {names(tt[[i]])[-c(1:5)] <- col_anno$WTA.plate}
 Ms <- c(Ms, tt)
+
 
 #verifing everything is with the same dimension:
 do.call(rbind, lapply(Ms, function(x) dim(x)))
@@ -220,7 +243,6 @@ saveRDS(Ms, sprintf("%s/CN_predictions.bygene.rds", CNdir))
 
 
 #now let's aggregate data by arm and chromosome and save data for further analysis:
-
 agg_by_chr <- function(M) {
   agg <- M[, lapply(.SD, function(x) mean(x, na.rm = TRUE)), by="seqnames", .SDcols = -row_anno_col] 
   return(agg)

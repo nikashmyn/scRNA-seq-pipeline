@@ -2,22 +2,22 @@
 
 #Set path prefixs
 #args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/data/processed_bam", "/pellmanlab/nikos/Stam_Etai_Data")
-args <- commandArgs(trailingOnly = TRUE)
-print(args)
-scriptsdir <- args[1]
-dirpath <- args[2]
-datadir <- args[3]
+#args <- commandArgs(trailingOnly = TRUE)
+#print(args)
+#scriptsdir <- args[1]
+#dirpath <- args[2]
+#datadir <- args[3]
 
 #Read in data
-rsemtpm <- readRDS(file = sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
-controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
-controlSampleIDs2 <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs2.rds", dirpath))
-controlIDs <- readRDS(file = sprintf("%s/aggregated_results/controlIDs.rds", dirpath))
-adt <- adt.default <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.rds", dirpath)))
-adt.na <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.na.rds", dirpath)))
-ganno <- data.table(readRDS(file = sprintf("%s/aggregated_results/ganno.rds", dirpath)))
-centromeres <- data.table(readRDS(file = sprintf("%s/centromeres.rds", datadir)))
-arms <- readRDS(file = sprintf("%s/CN_data/CN_predictions.byarm.rds", dirpath))
+#rsemtpm <- readRDS(file = sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
+#controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
+#controlSampleIDs2 <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs2.rds", dirpath))
+#controlIDs <- readRDS(file = sprintf("%s/aggregated_results/controlIDs.rds", dirpath))
+#adt <- adt.default <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.rds", dirpath)))
+#adt.na <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.na.rds", dirpath)))
+#ganno <- data.table(readRDS(file = sprintf("%s/aggregated_results/ganno.rds", dirpath)))
+#centromeres <- data.table(readRDS(file = sprintf("%s/centromeres.rds", datadir)))
+#arms <- readRDS(file = sprintf("%s/CN_data/CN_predictions.byarm.rds", dirpath))
 golden_samples <- readRDS(sprintf("%s/ML_data/golden_set_ids.rds", dirpath))
 
 #add chr column to golden samples by adjusting arm strings
@@ -263,65 +263,88 @@ saveRDS(pval_matrix_gain_bychr, file = sprintf("%s/aggregated_results/pval_matri
 #Or a low p-val shows an arm most likely does not belong to the normal CN dist. 
 #aka an arm with a low pval is likely an abnormal CN.
 
+##############################
+### Get significant chroms ###
+##############################
+
+pval_matrix_normal_bychr_noname <- pval_matrix_normal_bychr[,-c(1)]
+setkey(pval_matrix_normal_bychr_noname)
+inds <- which(pval_matrix_normal_bychr_noname < .05, arr.ind = TRUE, useNames = TRUE)
+rows <- rownames(pval_matrix_normal_bychr_noname)[inds[,1]]
+cols <- colnames(pval_matrix_normal_bychr_noname)[inds[,2]]
+non_diploid_chrs <- cbind(sample = cols, chr = rows) #already sorted
+non_diploid_chrs_vals <- c()
+for (i in 1:nrow(inds)) {
+  ind1 <- inds[i,1]; ind2 <- inds[i,2];
+  tmp <- unlist(pval_matrix_normal_bychr_noname[ind1,])
+  tmp2 <- tmp[ind2]
+  non_diploid_chrs_vals <- append(non_diploid_chrs_vals, tmp2)
+}
+non_diploid_chrs_w_vals <- cbind(non_diploid_chrs, non_diploid_chrs_vals)
+rownames(non_diploid_chrs_w_vals) <- NULL
+colnames(non_diploid_chrs_w_vals)[3] <- "Pval"
+
+saveRDS(non_diploid_chrs_w_vals, file = sprintf("%s/aggregated_results/non_diploid_chromosomes.rds", dirpath))
+
 ###############
 ### VISUALS ###
 ###############
 
-destDir <- sprintf("%s/visual_results/pval_plots", dirpath)
-system(sprintf("mkdir -p %s", destDir))
-
-#main data to be plotted byarm
-boxplots.vals <- c()
-boxplots.vals$loss <- golden_samples$loss_byarm$tpm; boxplots.vals$normal <- golden_samples$normal_byarm$tpm; boxplots.vals$gain <- golden_samples$gain_byarm$tpm; boxplots.vals$control <- golden_samples$control_byarm$tpm;
-dist_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen")
-point_colors <- c("green", "yellow")
-
-#Plot figures at arm level
-for ( i in 2:ncol(pval_matrix_normal_byarm) ) { #2:3) { #
-  myid <- colnames(pval_matrix_normal_byarm)[i]
-  pdfFile <- sprintf("%s/%s.pval_boxplot_byarm.pdf", destDir, myid)
-  pdf(file = pdfFile, width = 10, height = 14)
-  for ( j in 1:nrow(pval_matrix_normal_byarm) ) {
-    boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Arm Average TPM",
-             pch = 21, bg = dist_colors, axes = F, frame.plot = FALSE, col = dist_colors)
-    grid(col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
-    mtext(side = 1, text = names(boxplots.vals), at = c(1,2,3,4),
-          col = "grey20", line = 1, cex = 0.9)
-    mtext(side = 2, text = c(0.5, 1.0, 1.5, 2.0), at = c(0.5, 1.0, 1.5, 2.0),
-          col = "grey20", line = 1, cex = 0.9)
-    abline(a = as.numeric(as.character(adt_byarm[j,i])), b=0, col="yellow")
-    title( sprintf("%s | %s", colnames(pval_matrix_normal_byarm[j,..i]), pval_matrix_normal_byarm[j,1]) )
-    text(x=1, y = 2.15, labels = sprintf("P-Value = %s", signif(pval_matrix_loss_byarm[j,..i], digits = 2)), col="black", cex=.8)
-    text(x=2, y = 2.15, labels = sprintf("P-Value = %s", signif(pval_matrix_normal_byarm[j,..i], digits = 2)), col="black", cex=.8 )
-    text(x=3, y = .15, labels = sprintf("P-Value = %s", signif(pval_matrix_gain_byarm[j,..i], digits = 2)), col="black", cex=.8 )
-    text(x=4, y = .15, labels = sprintf("P-Value = %s", signif(pval_matrix_control_byarm[j,..i], digits = 2)), col="black", cex=.8 )
-  }
-  dev.off()
-}
-
-#main data to be plotted bychr
-boxplots.vals <- c()
-boxplots.vals$loss <- golden_samples$loss_bychr$tpm; boxplots.vals$normal <- golden_samples$normal_bychr$tpm; boxplots.vals$gain <- golden_samples$gain_bychr$tpm; boxplots.vals$control <- golden_samples$control_bychr$tpm;
-plot_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen")
-
-#Plot figures at chr level
-for ( i in 2:ncol(pval_matrix_normal_bychr) ) { #2:3) {
-  myid <- colnames(pval_matrix_normal_bychr)[i]
-  pdfFile <- sprintf("%s/%s.pval_boxplot_bychr.pdf", destDir, myid)
-  pdf(file = pdfFile, width = 10, height = 14)
-  for ( j in 1:nrow(pval_matrix_normal_bychr) ) {
-    boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Chr Average TPM",
-             pch = 21, bg = dist_colors, axes = F, frame.plot = FALSE, col = dist_colors)
-    grid(col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
-    mtext(side = 1, text = names(boxplots.vals), at = c(1,2,3),
-          col = "grey20", line = 1, cex = 0.9)
-    mtext(side = 2, text = c(0.5, 1.0, 1.5, 2.0), at = c(0.5, 1.0, 1.5, 2.0),
-          col = "grey20", line = 1, cex = 0.9)
-    abline(a = as.numeric(as.character(adt_bychr[j,i])), b=0, col="green")
-    title( sprintf("%s | %s", colnames(pval_matrix_normal_bychr[j,..i]), pval_matrix_normal_bychr[j,1]) )
-    text(x=1, y = 2.1, labels = sprintf("P-Value = %s", signif(pval_matrix_loss_bychr[j,..i], digits = 2)), col="black", cex=.8)
-    text(x=2, y = 2.1, labels = sprintf("P-Value = %s", signif(pval_matrix_normal_bychr[j,..i], digits = 2)), col="black", cex=.8 )
-    text(x=3, y = .25, labels = sprintf("P-Value = %s", signif(pval_matrix_gain_bychr[j,..i], digits = 2)), col="black", cex=.8 )
-  }
-  dev.off()
-}
+#destDir <- sprintf("%s/visual_results/pval_plots", dirpath)
+#system(sprintf("mkdir -p %s", destDir))
+#
+##main data to be plotted byarm
+#boxplots.vals <- c()
+#boxplots.vals$loss <- golden_samples$loss_byarm$tpm; boxplots.vals$normal <- golden_samples$normal_byarm$tpm; boxplots.vals$gain <- golden_samples$gain_byarm$tpm; boxplots.vals$control <- golden_samples$control_byarm$tpm;
+#dist_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen")
+#point_colors <- c("green", "yellow")
+#
+##Plot figures at arm level
+#for ( i in 2:ncol(pval_matrix_normal_byarm) ) { #2:3) { #
+#  myid <- colnames(pval_matrix_normal_byarm)[i]
+#  pdfFile <- sprintf("%s/%s.pval_boxplot_byarm.pdf", destDir, myid)
+#  pdf(file = pdfFile, width = 10, height = 14)
+#  for ( j in 1:nrow(pval_matrix_normal_byarm) ) {
+#    boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Arm Average TPM",
+#             pch = 21, bg = dist_colors, axes = F, frame.plot = FALSE, col = dist_colors)
+#    grid(col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
+#    mtext(side = 1, text = names(boxplots.vals), at = c(1,2,3,4),
+#          col = "grey20", line = 1, cex = 0.9)
+#    mtext(side = 2, text = c(0.5, 1.0, 1.5, 2.0), at = c(0.5, 1.0, 1.5, 2.0),
+#          col = "grey20", line = 1, cex = 0.9)
+#    abline(a = as.numeric(as.character(adt_byarm[j,i])), b=0, col="yellow")
+#    title( sprintf("%s | %s", colnames(pval_matrix_normal_byarm[j,..i]), pval_matrix_normal_byarm[j,1]) )
+#    text(x=1, y = 2.15, labels = sprintf("P-Value = %s", signif(pval_matrix_loss_byarm[j,..i], digits = 2)), col="black", cex=.8)
+#    text(x=2, y = 2.15, labels = sprintf("P-Value = %s", signif(pval_matrix_normal_byarm[j,..i], digits = 2)), col="black", cex=.8 )
+#    text(x=3, y = .15, labels = sprintf("P-Value = %s", signif(pval_matrix_gain_byarm[j,..i], digits = 2)), col="black", cex=.8 )
+#    text(x=4, y = .15, labels = sprintf("P-Value = %s", signif(pval_matrix_control_byarm[j,..i], digits = 2)), col="black", cex=.8 )
+#  }
+#  dev.off()
+#}
+#
+##main data to be plotted bychr
+#boxplots.vals <- c()
+#boxplots.vals$loss <- golden_samples$loss_bychr$tpm; boxplots.vals$normal <- golden_samples$normal_bychr$tpm; boxplots.vals$gain <- golden_samples$gain_bychr$tpm; boxplots.vals$control <- golden_samples$control_bychr$tpm;
+#plot_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen")
+#
+##Plot figures at chr level
+#for ( i in 2:ncol(pval_matrix_normal_bychr) ) { #2:3) {
+#  myid <- colnames(pval_matrix_normal_bychr)[i]
+#  pdfFile <- sprintf("%s/%s.pval_boxplot_bychr.pdf", destDir, myid)
+#  pdf(file = pdfFile, width = 10, height = 14)
+#  for ( j in 1:nrow(pval_matrix_normal_bychr) ) {
+#    boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Chr Average TPM",
+#             pch = 21, bg = dist_colors, axes = F, frame.plot = FALSE, col = dist_colors)
+#    grid(col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
+#    mtext(side = 1, text = names(boxplots.vals), at = c(1,2,3),
+#          col = "grey20", line = 1, cex = 0.9)
+#    mtext(side = 2, text = c(0.5, 1.0, 1.5, 2.0), at = c(0.5, 1.0, 1.5, 2.0),
+#          col = "grey20", line = 1, cex = 0.9)
+#    abline(a = as.numeric(as.character(adt_bychr[j,i])), b=0, col="green")
+#    title( sprintf("%s | %s", colnames(pval_matrix_normal_bychr[j,..i]), pval_matrix_normal_bychr[j,1]) )
+#    text(x=1, y = 2.1, labels = sprintf("P-Value = %s", signif(pval_matrix_loss_bychr[j,..i], digits = 2)), col="black", cex=.8)
+#    text(x=2, y = 2.1, labels = sprintf("P-Value = %s", signif(pval_matrix_normal_bychr[j,..i], digits = 2)), col="black", cex=.8 )
+#    text(x=3, y = .25, labels = sprintf("P-Value = %s", signif(pval_matrix_gain_bychr[j,..i], digits = 2)), col="black", cex=.8 )
+#  }
+#  dev.off()
+#}

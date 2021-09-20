@@ -20,28 +20,32 @@ source( sprintf("%s/scripts/RNAseqUtils.R", scriptsdir) )
 require(data.table)
 #require(snow)
 
-anno <- data.table(readRDS( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_210129.rds", datadir) ))
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
 
-rnaseqOutDir <- sprintf("%s/%s/STAR/", wkdir, experiment)
+rnaseqOutDir <- sprintf("%s/%s/STAR", wkdir, experiment)
 expr <- collectAllSTARCountsFromFileDir(workdir = rnaseqOutDir)
 
-qc <- expr$qc 
-counts <- expr$counts 
+qc <- data.table(expr$qc)
+qc_names <- rownames(expr$qc)
+counts <- data.table(expr$counts)
 
 tmp <- rbindlist(lapply(1:length(anno$Fastq_files), function(x)  {
   res <- grep(pattern = sprintf("_%s_", anno$Fastq_files[x]), ignore.case = T, x = colnames(qc))
-  data.table(id = anno$WTA.plate[x], 
+  res <- ifelse(length(res) > 0, res, grep(pattern = sprintf("^%s", anno$Fastq_files[x]), ignore.case = T, x = colnames(qc)))
+  data.table(id = unlist(anno[,c("WTA.plate")][x]),  #data.table(id = anno$WTA.plate[x], 
              idx = ifelse(length(res) > 0, res, -1)) }))
 
-colnames(qc)[tmp[idx>0]$idx] <- tmp[idx>0]$id
-colnames(counts)[tmp[idx>0]$idx] <- tmp[idx>0]$id
+setnames(qc, tmp[idx>0]$idx, as.character(tmp[idx>0]$id))
+setnames(counts, tmp[idx>0]$idx, as.character(tmp[idx>0]$id))
 
 qc2 <- round(sweep(qc, 2, colSums(qc), FUN = "/")*100)
 qcbygene <- rbind(colSums(counts>0), colSums(counts>4), colSums(counts>9))
-rownames(qcbygene) <- c("th1", "th5", "th10")
+#rownames(qcbygene) <- c("th1", "th5", "th10")
 
 qc3 <- t(rbind(qc2, qcbygene, totalReads=colSums(qc)))
-qcs <- data.table(qc3, keep.rownames = "id")
+qcs <- cbind(id = rownames(qc3), qc3)
+colnames(qcs) <- c("id", qc_names, "th1", "th5", "th10", "totalReads")
+
 
 mk_analysis_dir <- sprintf("mkdir -p  %s/%s/QC", wkdir, experiment)
 system(mk_analysis_dir)
@@ -50,7 +54,7 @@ write.csv(x = qc3, file = sprintf("%s/%s/QC/%s_QC.csv", wkdir, experiment, exper
 
 saveRDS(counts, sprintf("%s/%s/QC/%s_counts.rds", wkdir, experiment, experiment))
 
-hist(qcs$geneCounts, main="", xlab="Gene Counts", cex.lab=1.5, cex.axis=1.4, col="darkgreen", xlim=c(0,100), breaks=34)
+#hist(qcs$geneCounts, main="", xlab="Gene Counts", cex.lab=1.5, cex.axis=1.4, col="darkgreen", xlim=c(0,100), breaks=34)
 
 
 #########################################################################

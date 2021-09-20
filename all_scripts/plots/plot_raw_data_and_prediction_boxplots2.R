@@ -258,7 +258,8 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
     geom_linerange(color = alpha("darkred", alpha = 0.3)) +
     #geom_errorbarh(color = "darkred", aes(x = pos, y = median, xmin = pos - (proportion/max(proportion)/1.7 + 0.15)/2,  xmax = pos + (proportion/max(proportion)/1.7 + 0.15)/2), size = 1) + 
     ggtitle(sprintf("Normalized Ratio of Expressed Genes")) + ylim(c(0, min(5, max(tt2b$se.max)))) + 
-    ylab("Normalized ratio") +  theme_gray(base_size=16) +
+    ylab("Normalized ratio") +  theme_gray(base_size=16) + 
+    #scale_y_continuous(limits = c(-.2, 4)) + #add back if you want y-axis limits
     scale_x_discrete(breaks=posvalues, labels = as.character(round(posvalues/1e6))) + 
     #xlab(label = sprintf("Position (Mbp) %s", chr)) +
     theme_bw() +

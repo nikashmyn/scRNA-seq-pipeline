@@ -237,14 +237,14 @@ get_snps_fraction_bins_zscore <- function(th = 10, saveMe = F, generateAlleleDat
   
 }
 
-generate_adt_adt0_adt.na_and_nonzeros_data <- function(th = 4, dirpath = "/pellmanlab/stam_niko/data/processed_bam", scriptsdir = "/pellmanlab/nikos/Stam_Etai_Scripts", normBySd = F) {
+generate_adt_adt0_adt.na_and_nonzeros_data <- function(th = 4, dirpath = "/pellmanlab/stam_niko/data/processed_bam", scriptsdir = "/pellmanlab/nikos/Stam_Etai_Scripts", normBySd = F, datadir = "/pellmanlab/nikos/Stam_Etai_Data") {
   
   #source('~/WORK/secondaryanalysis/methods_paper_results/R/CNML.R')
   #load_control_data()
   source(sprintf('%s/scripts/fromRawTPMtoExprsRatio.R', scriptsdir))
   #source(sprintf('%s/scripts/fromRawTPMtoExprsRatio_by_limma.R', scriptsdir))
   rsemtpm <- readRDS(file = sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
-  geneRanges <- readRDS(sprintf("%s/aggregated_results/geneRanges.rds", dirpath))
+  geneRanges <- readRDS(sprintf("%s/geneRanges.rds", datadir))
   controlSampleIDs2 <- readRDS(sprintf("%s/aggregated_results/controlSampleIDs2.rds", dirpath))
   controlSampleIDs <- readRDS(sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
   

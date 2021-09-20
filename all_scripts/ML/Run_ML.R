@@ -55,18 +55,34 @@ ganno <- ganno[order(seqnames, start, end)]
 stopifnot(sum(ganno$id != adt$id) == 0)
 
 #get samples to run based on samples in df
-anno <- data.table(readRDS(sprintf("%s/work_in_progress/Annotation_list_long_vnikos_210129.rds", datadir) ))
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
 samples_to_use <- anno[!LookRNAseq.Exp %in% exclude]$WTA.plate
 columns <- colnames(adt)[-c(1:4)]
 samples_to_use <- c(intersect(columns, samples_to_use))
+samples_to_use <- c(intersect(columns, anno$WTA.plate))
 
 #get high quality samples from raw tpm values
-high_qc_ids <- names(which(colSums(rsemtpm>5)>4000))
+all_QC <- readRDS(file = sprintf("%s/aggregated_results/all_QC.rds", dirpath))
+high_qc_ids <- as.character(all_QC[which(all_QC$th5 >= quantile(all_QC$th5, c(.10))),]$id)
+high_qc_ids <- intersect(high_qc_ids, samples_to_use)
+
+#Variant matrix in the coding and UTR regions
+coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
+#Low var counts exclusion. Note: both distributions of var counts are fairly similar.
+high_varqc_idsA <- names(which(colSums(coding$cnts.A[,-c(1:2)]) > quantile(colSums(coding$cnts.A[,-c(1:2)]), c(.10))))
+high_varqc_idsB <- names(which(colSums(coding$cnts.B[,-c(1:2)]) > quantile(colSums(coding$cnts.B[,-c(1:2)]), c(.10))))
+high_varqc_ids <- intersect(high_varqc_idsA, high_varqc_idsB)
+high_qc_ids <- intersect(high_qc_ids, high_varqc_ids)
 
 #columns annotations used in file naming convention for visuals
-col_anno <- data.table(readRDS( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_210129.rds", datadir) ))
+col_anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
+dim(col_anno)
 col_anno <- col_anno[ WTA.plate %in% high_qc_ids]
+dim(col_anno)
 col_anno[Pairs == "NA", Pairs := NA]
+
+# Temporary: train only on high quality samples 
+samples_to_use <- high_qc_ids
 
 
 #################################################################################
@@ -75,8 +91,8 @@ col_anno[Pairs == "NA", Pairs := NA]
 
 #Let's find small chrs 
 sort(table(adt$seqnames))
-arms_to_exclude <- c("10q", "Xp", "Xq", "21p", "21q", "18p", "18q", "13q", "22p", "22q", "20p", "20q")
-#arms_to_exclude <- c("Xp", "Xq")
+#arms_to_exclude <- c("10q", "Xp", "Xq", "21p", "21q", "18p", "18q", "13q", "22p", "22q", "20p", "20q")
+arms_to_exclude <- c("Xp", "Xq")
 
 #Run ML scripts
 source(sprintf("%s/ML/data_preparation.base_model.R", scriptsdir))
