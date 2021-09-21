@@ -2,6 +2,56 @@
 ### Cluster/Contour Map Function (TPM Ratio vs Variant Ratio) ###
 #################################################################
 
+ClusterMap2D_byfamily <- function(adt.bychr, var_mat_sep.bychr, myids, myfamily, exclude_chrs) {
+  
+  ###################
+  ### Contour Map ###
+  ###################
+  
+  #Set seed for reproducability
+  set.seed(123)
+  
+  #Prepare Visual Objects
+  visual.data <- data.table(TPM = as.numeric(flatten(adt.bychr[,..myids])))
+  visual.data$VAR <- as.numeric(flatten(var_mat_sep.bychr[,..myids]))
+  visual.data$chr <- as.factor(rep(unique(adt.bychr$seqnames), length = length(visual.data$VAR)))
+  visual.data$cell <- rep(myids, each=23-length(exclude_chrs))
+  
+  ####################
+  ### Cluster Plot ###
+  ####################
+  #shorten data name
+  df <- visual.data[, c("TPM", "VAR")]
+  
+  #Visualize optimal number of clusters
+  wss <- fviz_nbclust(df, kmeans, method = "wss")
+  silhouette <- fviz_nbclust(df, kmeans, method = "silhouette")
+  
+  #Extract optimal number of means
+  optimal_means_data <- fviz_nbclust(df, kmeans, method = "silhouette")$data
+  optimal_means <-as.numeric(optimal_means_data$clusters[which.max(optimal_means_data$y)])
+  
+  #Visualize cluster map using optimal number of means
+  cluster.data <- kmeans(df, centers = optimal_means, nstart = 25)
+  #cluster.data <- kmeans(df, centers = 3, nstart = 25)
+  
+  ####################
+  ### Final Visual ###
+  ####################
+  
+  #TPM/VAR plane plot
+  VAR.visual <- ggplot(data = visual.data, mapping = aes(x = TPM, y = VAR, color = chr, shape = cell)) +
+    geom_point(mapping = aes(x = TPM, y = VAR, color = chr, shape = cell)) +
+    xlim(c(0,2)) + ylim(c(0,2)) +
+    labs(x = "TPM Ratio", y = "SNP Count Ratio", title = sprintf("Expression Contour Plot | %s ", myfamily))
+  
+  #Cluster visual
+  cluster.visual <- fviz_cluster(cluster.data, data = df, geom = "point", choose.vars = c("TPM", "VAR"))
+  
+  grid.arrange(arrangeGrob(VAR.visual), arrangeGrob(cluster.visual, silhouette, ncol=1, nrow=2), widths=c(2,1))
+
+}
+
 ClusterMap3D_byfamily <- function(adt.bychr, var_mat_sep.bychr, abs_allele_diff_mat.bychr, myids, myfamily, exclude_chrs) {
   
   ###################
@@ -57,7 +107,7 @@ ClusterMap3D_byfamily <- function(adt.bychr, var_mat_sep.bychr, abs_allele_diff_
   cluster.visual <- fviz_cluster(cluster.data, data = df, geom = "point", choose.vars = c("TPM", "VAR"))
   
   grid.arrange(arrangeGrob(VAR.visual), arrangeGrob(cluster.visual, DIFF.visual, ncol=1, nrow=2), widths=c(2,1))
-
+  
 }
   
 

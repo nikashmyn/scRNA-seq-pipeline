@@ -348,6 +348,7 @@ foreach(i = c(1:length(names(families)))) %dopar% {
                                                     wt = rep(1:nrow(chr.TE)), fracs = list(Af = chr.Af, Bf = chr.Bf), nogeno = c(),
                                                     ids = myids, chr = "")
   #Plot cluster map output by family
+  ClusterMap2D_byfamily(adt.bychr, var_mat_sep.bychr, myids, myfamily, exclude_chrs)
   ClusterMap3D_byfamily(adt.bychr, var_mat_sep.bychr, abs_allele_diff_mat.bychr, myids, myfamily, exclude_chrs)
   #print(p)
   dev.off()
