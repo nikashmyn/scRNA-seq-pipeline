@@ -5,6 +5,7 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
   #This data is made by sourcing "calculating_pvals_byarm_nikos.R" before running this script
   #pval_matrix_loss_byarm, pval_matrix_normal_byarm, pval_matrix_gain_byarm, pval_matrix_control_byarm
   #adt_byarm, OLR_preds_byarm, golden_tpms
+  golden_samples <- readRDS(file = sprintf("%s/aggregated_results/golden_set_tpms_byarm.rds", dirpath))
   pval_matrix_control_byarm <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_control_byarm.rds", dirpath))
   pval_matrix_gain_byarm <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_gain_byarm.rds", dirpath))
   pval_matrix_loss_byarm <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_loss_byarm.rds", dirpath))
@@ -32,9 +33,7 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
   
   #main data to be plotted byarm
   boxplots.vals <- c()
-  #right here FIXXXXXXXXXXXXXXXX
-  boxplots.vals$loss <- golden_samples$loss_byarm$tpm; boxplots.vals$normal <- golden_samples$normal_byarm$tpm; boxplots.vals$gain <- golden_samples$gain_byarm$tpm;
-  boxplots.vals$control <- golden_samples$control_byarm$tpm; boxplots.vals$control_arm_specific <- golden_samples$control_byarm[which(golden_samples$control_byarm$arm %in% arms),]$tpm
+  boxplots.vals$loss <- golden_samples$loss_byarm$tpm; boxplots.vals$control <- golden_samples$control_byarm$tpm; boxplots.vals$gain <- golden_samples$gain_byarm$tpm; boxplots.vals$control_arm_specific <- golden_samples$control_byarm[which(golden_samples$control_byarm$arm %in% arms),]$tpm
   dist_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen", "lightgreen")
   point_colors <- c("orange", "yellow")
   
@@ -44,18 +43,19 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
     
     i = myid 
     j = which(adt_byarm$arm %in% arms[k])
+    
     boxplots.vals$control_arm_specific <- golden_samples$control_byarm[which(golden_samples$control_byarm$arm %in% arms[k]),]$tpm
     
     #plot dist of arm wide average TPMs for each CN state as labeled in golden set 
     boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Arm Average TPM",
              pch = 21, bg = dist_colors, axes = F, frame.plot = FALSE, col = dist_colors,
-             ylim = c(.25, 2.25), xlim = c(.5, 5.5), outline = F)
+             ylim = c(.25, 1.75), xlim = c(.5, 4.5), outline = F)
     #Add a grid
     grid(col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
     #Axes labels
-    mtext(side = 1, text = names(boxplots.vals), at = c(1,2,3,4,5),
+    mtext(side = 1, text = names(boxplots.vals), at = c(1,2,3,4),
           col = "grey20", line = 1, cex = 0.9)
-    mtext(side = 2, text = c(0.5, 1.0, 1.5, 2.0), at = c(0.5, 1.0, 1.5, 2.0),
+    mtext(side = 2, text = c(0.5, 1.0, 1.5), at = c(0.5, 1.0, 1.5),
           col = "grey20", line = 1, cex = 0.9)
     #A line for the OLR prediction CN ratio and average arm tpm 
     abline(a = as.numeric(as.character(OLR_preds_byarm[j,i]))/2, b=0, col=point_colors[1])
@@ -64,17 +64,15 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
     title_txt <- sprintf("%s | %s", colnames(pval_matrix_normal_byarm[j,..i]), pval_matrix_normal_byarm[j,1])
     title(title_txt)
     #Add p-vals to each dist
-    text(x=1, y = 2.0, labels = sprintf("P-Val = %s", signif(pval_matrix_loss_byarm[j,..i], digits = 2)), col="black", cex=.6 )
-    text(x=2, y = 2.0, labels = sprintf("P-Val = %s", signif(pval_matrix_normal_byarm[j,..i], digits = 2)), col="black", cex=.6 )
+    text(x=1, y = 1.6, labels = sprintf("P-Val = %s", signif(pval_matrix_loss_byarm[j,..i], digits = 2)), col="black", cex=.6 )
+    text(x=2, y = 1.6, labels = sprintf("P-Val = %s", signif(pval_matrix_control_byarm[j,..i], digits = 2)), col="black", cex=.6 )
     text(x=3, y = .3, labels = sprintf("P-Val = %s", signif(pval_matrix_gain_byarm[j,..i], digits = 2)), col="black", cex=.6 )
-    text(x=4, y = .3, labels = sprintf("P-Val = %s", signif(pval_matrix_control_byarm[j,..i], digits = 2)), col="black", cex=.6 )
-    text(x=5, y = .3, labels = sprintf("P-Val = %s", signif(pval_matrix_control_byarm_specific[j,..i], digits = 2)), col="black", cex=.6 )
+    text(x=4, y = .3, labels = sprintf("P-Val = %s", signif(pval_matrix_control_byarm_specific[j,..i], digits = 2)), col="black", cex=.6 )
     #Add number of samples in each dist
     text(x=1, y = median(boxplots.vals$loss)+.02, labels = sprintf("Distr. size = %s", length(boxplots.vals$loss)), col="black", cex=.4 )
-    text(x=2, y = median(boxplots.vals$normal)+.02, labels = sprintf("Distr. size = %s", length(boxplots.vals$normal)), col="black", cex=.4 )
+    text(x=2, y = median(boxplots.vals$control)+.02, labels = sprintf("Distr. size = %s", length(boxplots.vals$control)), col="black", cex=.4 )
     text(x=3, y = median(boxplots.vals$gain)+.02, labels = sprintf("Distr. size = %s", length(boxplots.vals$gain)), col="black", cex=.4 )
-    text(x=4, y = median(boxplots.vals$control)+.02, labels = sprintf("Distr. size = %s", length(boxplots.vals$control)), col="black", cex=.4 )
-    text(x=5, y = median(boxplots.vals$control_arm_specific)+.02, labels = sprintf("Distr. size = %s", length(boxplots.vals$control_arm_specific)), col="black", cex=.4 )
+    text(x=4, y = median(boxplots.vals$control_arm_specific)+.02, labels = sprintf("Distr. size = %s", length(boxplots.vals$control_arm_specific)), col="black", cex=.4 )
     par(xpd=F)
     legend("topright", legend = c("CN ratio from OLR Prediction", title_txt), col = point_colors, lwd = .5,
            horiz = F, cex = .5, pt.cex = .2, bty = "n", inset = c(-.75,-.045)) # "topright"

@@ -1,7 +1,6 @@
-plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("170209_A5", "170209_A6"), chr = "chr12", 
-                                               dfs, wt, fracs, ymax = NULL,
-                                               plotOnlyDepth = F, pval.th = 0.01,
-                                               nogeno = c("chr14", "chr21", "chr22", "chrY", "chrM"), plotAxisText = T) {
+plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("210503_9A", "210503_9B", "210503_9C", "210503_9D"), chr = "chr12", myfamily_file = "F258", name_ids = c("F258.1","F258.2","F258.3","F258.4"),
+                                                         dfs, wt, fracs, ymax = NULL, destDir = "/pellmanlab/stam_niko/rerun_6_9_2021/data/visual_results", 
+                                                         plotOnlyDepth = F, pval.th = 0.01, nogeno = c("chr14", "chr21", "chr22", "chrY", "chrM"), plotAxisText = T, return_plot = F) {
   
   require(gtools)
   require(ggplot2)
@@ -37,10 +36,10 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("170209_A5", "1
     setnames(B, old = id, new = "fraction")
     
     tmp <- data.frame(bin_id = grep(chr, dfs$bin_id, value = T), amp = dfs[grep(chr, dfs$bin_id), id])
-
+    
     tmp$amp[grep("chrX", tmp$bin_id)] <- tmp$amp[grep("chrX", tmp$bin_id)]*0.5 #manually divide X by 2
     tmp$bias <- tmp$amp
-
+    
     #allele A:
     tmp2 <- merge(tmp, A, by = "bin_id", all.x = T)
     
@@ -77,7 +76,7 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("170209_A5", "1
     return(ccp)
   }
   
-
+  
   ids <- intersect(ids, colnames(dfs))
   if(length(ids) == 0)
     return(NA)
@@ -94,7 +93,7 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("170209_A5", "1
     geom_bar(stat = "identity", position = "dodge", width = 0.8, size = 0.7, colour = "black")
   
   if(plotAxisText) {
-    p <- p + ggtitle(sprintf("IDs: %s", paste(ids, collapse = " | "))) +
+    p <- p + ggtitle(sprintf("IDs: %s", paste(name_ids, collapse = " | "))) +
       theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = +0.5, size = 15), axis.text.y = element_text(size=12)) +
       scale_fill_manual(values = cols) + #cols(ngroups)) +
       geom_errorbar(data=ccps[allele == "mid"], 
@@ -105,19 +104,25 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("170209_A5", "1
                 mapping = aes(label = sample, x = bin_id, y = 0, group = sample), 
                 position = position_dodge(width = 0.8), hjust=1.2, color = "black", size=4, angle = 90) 
   } else {
-    p <- p + ggtitle(sprintf("IDs: %s", paste(ids, collapse = " | "))) +
-      theme(axis.text.x = element_blank(), axis.text.y = element_text(size=12)) +
-      scale_fill_manual(values = cols(ngroups)) +
-      geom_errorbar(data=ccps[allele == "mid"], 
-                    mapping=aes(x=bin_id, ymin=amp, ymax=amp, group = sample), 
-                    width=1, size=1, position = "dodge", color= cols[3]) + #cols(ngroups)[nmid]) + 
-      scale_y_continuous(name ="Expected CN", breaks = seq(0,3.0,0.25), limits = c(-0.25, ymax+0.25)) + 
-      geom_text(data = ccps[ bin_id == levels(ccps$bin_id)[1] & allele == "mid"], 
-                mapping = aes(label = sample, x = bin_id, y = 0, group = sample), 
-                position = position_dodge(width = 0.8), hjust=1.2, color = "black", size=4, angle = 90) 
+    p <- p + ggtitle(sprintf("IDs: %s", paste(name_ids, collapse = " | "))) +
+      scale_fill_manual(values = cols) +
+      #geom_errorbar(data=ccps[allele == "mid"], 
+      #              mapping=aes(x=bin_id, ymin=amp, ymax=amp, group = sample), 
+      #              width=1, size=1, position = "dodge", color= cols[3]) + #cols(ngroups)[nmid]) + 
+      scale_y_continuous(breaks = c(0,.5,1,1.5,2,2.5,3), labels = c("0","","1","","2","","3"), limits = c(0, 3.25)) + 
+      coord_cartesian(clip="off") +
+      geom_rangeframe(x=0, y=seq(0, 3, along.with = ccps[allele != "mid"]$bin_id)) + 
+      theme_tufte() +
+      theme(aspect.ratio = 1/5, text=element_text(size=18), axis.ticks.x = element_blank(),
+            axis.text = element_text(color="black"), axis.title = element_blank()) 
+      #geom_text(data = ccps[ bin_id == levels(ccps$bin_id)[1] & allele == "mid"], 
+      #          mapping = aes(label = sample, x = bin_id, y = 0, group = sample), 
+      #          position = position_dodge(width = 0.8), hjust=1.2, color = "black", size=4, angle = 90) 
     
   }  
-  plot(p)
-  return(p)
+  ggsave(plot = p, filename = sprintf("%s.ExprRatio.pdf", myfamily_file), path = destDir, device = "pdf", width = 12, height = 3, dpi = 300, units = "in")
+  if(return_plot == T) {
+    plot(p)
+    return(p)
+  }
 }
-

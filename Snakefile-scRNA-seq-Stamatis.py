@@ -64,6 +64,13 @@ f_L1_samples = set(SIS1025f_L1_samples['samples'])
 SIS1025f_L2_samples = pd.read_table(config["f2_samples"], header=0 )
 f_L2_samples = set(SIS1025f_L2_samples['samples'])
 
+#Whole g experiment
+SIS1025g_L1_samples = pd.read_table(config["g1_samples"], header=0 )
+g_L1_samples = set(SIS1025g_L1_samples['samples'])
+
+SIS1025g_L2_samples = pd.read_table(config["g2_samples"], header=0 )
+g_L2_samples = set(SIS1025g_L2_samples['samples'])
+
 #misc early experiments
 SIS1025_misc_samples = pd.read_table(config["misc_samples"], header=0)
 misc_samples = set(SIS1025_misc_samples['samples'])
@@ -73,8 +80,8 @@ SIS1025_targ_samples = pd.read_table(config["targ_samples"], header=0)
 targ_samples = set(SIS1025_targ_samples['samples'])
 
 #list of experiments sets
-experiments = [ "SIS1025a", "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025misc", "SIS1025targ" ]
-samples_set = [a_samples, b_samples, c_samples, d_samples, e_samples, f_L1_samples, f_L2_samples, misc_samples, targ_samples]
+experiments = [ "SIS1025a", "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ" ]
+samples_set = [a_samples, b_samples, c_samples, d_samples, e_samples, f_L1_samples, f_L2_samples, g_L1_samples, g_L2_samples, misc_samples, targ_samples]
 
 #All samples
 all_samples = []
@@ -85,6 +92,8 @@ all_samples.extend(d_samples)
 all_samples.extend(e_samples)
 all_samples.extend(f_L1_samples)
 all_samples.extend(f_L2_samples)
+all_samples.extend(g_L1_samples)
+all_samples.extend(g_L2_samples)
 all_samples.extend(misc_samples)
 all_samples.extend(targ_samples)
 

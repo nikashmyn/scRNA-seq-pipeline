@@ -1,10 +1,12 @@
 
-plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir) {
+plot_pvals_and_tpm_distributions_bychr <- function(myid=myid, chr=chr, destDir=destDir) {
   
   ### What data is needed ###
   #This data is made by sourcing "calculating_pvals_byarm_nikos.R" before running this script
   #pval_matrix_loss_byarm, pval_matrix_normal_byarm, pval_matrix_gain_byarm, pval_matrix_control_byarm
   #adt_byarm, OLR_preds_byarm, golden_tpms
+  golden_samples <- readRDS(file = sprintf("%s/aggregated_results/golden_set_tpms_bychr.rds", dirpath))
+  
   pval_matrix_control_bychr <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_control_bychr.rds", dirpath))
   pval_matrix_gain_bychr <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_gain_bychr.rds", dirpath))
   pval_matrix_loss_bychr <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_loss_bychr.rds", dirpath))
@@ -25,8 +27,10 @@ plot_pvals_and_tpm_distributions <- function(myid=myid, chr=chr, destDir=destDir
   dist_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen")
   point_colors <- c("orange", "yellow")
   
-  i = as.numeric(gsub("chr", "", chr))
-  j = myid
+  #if (chr == "chrX") {i <- which(OLR_preds_bychr$bin_id == "chrX")}
+  #i <- as.numeric(gsub("chr", "", chr)) #fix it so it calls the right row instead of interger
+  i <- which(OLR_preds_bychr$bin_id == chr)
+  j <- myid
   
   #plot dist of arm wide average TPMs for each CN state as labeled in golden set 
   boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Arm Average TPM",

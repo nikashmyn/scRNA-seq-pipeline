@@ -24,6 +24,7 @@ fromRawTPMtoExprsRatio <- function(rsemtpm, geneRanges, controlSampleIDs, max_po
   
   message("NAs = ", sum(is.na(M)))
   
+  quant99 <- unname(quantile(as.matrix(M), quantileOfExp, na.rm=T))
   q <- min(maxExp, unname(quantile(as.matrix(M), quantileOfExp, na.rm=T)))
   M[M > q] <- q
   message("Quantile q = ", q)
@@ -75,6 +76,6 @@ fromRawTPMtoExprsRatio <- function(rsemtpm, geneRanges, controlSampleIDs, max_po
     }
   }
 
-  res <- list(adt = dt, means = means, means2 = means2, sds = sds, sds2 = sds2, interspace = interspace, controlSampleIDs = controlSampleIDs)
+  res <- list(adt = dt, means = means, means2 = means2, sds = sds, sds2 = sds2, interspace = interspace, controlSampleIDs = controlSampleIDs, cap = q, quant99 = quant99 )
   return(res)
 }

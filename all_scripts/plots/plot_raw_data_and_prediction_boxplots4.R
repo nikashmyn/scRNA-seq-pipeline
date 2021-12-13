@@ -2,11 +2,11 @@
 
 #need to load source('~/WORK/Papers/MLpaper/R/utilities/class_prob_to_cn_level.R')
 
-plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "chr5", th = 10, 
-                                                  adt, nonzeros.zs, coding, preds, eps = 0, controlSampleIDs, doPlot = T) {
+plot_raw_data_and_prediction_boxplots4 <- function(myfamily_file = "F258", myid_file = "F258.3", myid = "210503_9C", chr = "chr5", destDir = "/pellmanlab/stam_niko/rerun_6_9_2021/data/visual_results", th = 10, 
+                                                   adt, nonzeros.zs, coding, preds, eps = 0, controlSampleIDs, doPlot = T, save.rds = F) {
   require(ggplot2)
   require(matrixStats)
-  
+  require(ggthemes)
   
   #get tpm objects for control cells:
   columns <- c("id", "seqnames", "start", "end", controlSampleIDs)
@@ -66,7 +66,7 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
   posvalues <- tt1$pos
   tt1$pos <- factor(tt1$pos)
   setnames(tt1, "MLreg", "value")
-
+  
   #Make the primary data object with normalized tpm values for specific cell binned by chr. Also unlog the tpm values that were logged before this script. 
   tt2 <- mlt1[, c("bin", "pos", "tpm", "proportion")]
   tt2$method="TPM Ratio"
@@ -83,7 +83,7 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
   
   #normalizing by sample
   aggs.A.zs <- cbind(aggs.A.zs[,1:2], sweep(aggs.A.zs[, -c(1:2)], 2, colMeans(as.matrix(aggs.A.zs[, -c(1:2)]))+eps, FUN = "/"))
-
+  
   #normalizing by bin
   aggs.A.zs <- cbind(aggs.A.zs[,1:2], sweep(aggs.A.zs[, -c(1:2)], 1, rowMedians(as.matrix(aggs.A.zs[, controlSampleIDs, with=F]))+eps, FUN = "/"))
   
@@ -188,7 +188,7 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
     aggsAB[method == "Frac Allele A", fracNonZero := NA]
     aggsAB[method == "Frac Allele A", cntsNonZero := NA]
   }
-
+  
   
   #---------
   # Visuals:
@@ -232,93 +232,88 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
     return(mydata)
   }
   
-  ##First boxplots for ML values.
-  #p1 <- ggplot(tt1, aes(x=pos, y=value, fill = method)) + ylim(c(0,3.2)) + ylab(myYlab.p1) + theme_bw() +
-  #  geom_vline(xintercept=as.numeric(unique(tmp2AB$pos)), linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +
+  #CZ version of p2 with discrete x-axis
+  #p2 <- ggplot(tt2b, aes(x = pos, y = median)) + 
   #  geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
-  #  # geom_boxplot(position=position_dodge(0), fill = NA, colour = "darkred", size = 1., outlier.shape = NA,
-  #  #              show.legend = F, varwidth = TRUE, alpha=0.6, aes(weight=proportion)) + 
-  #  stat_summary(fun.data = myf, geom="boxplot", position = position_dodge(2), fill = NA, colour = "darkred", size = 1., outlier.shape = NA,
-  #               show.legend = F, varwidth = TRUE, alpha=0.6, aes(width=tt1$proportion/max(tt1$proportion)/1.7 + 0.15)) +
-  #  
-  #  ggtitle(sprintf("%s - %s\nMachine Learning Predictions", myid, chr)) +
-  #  geom_hline(yintercept=c(0, 0.5, 1.0, 1.5, 2, 3), linetype="dashed", color = "black", size = c(0.4, 0.4, 0.4, 0.4, 1.05, 0.4)) +
+  #  geom_hline(yintercept=c(0, 0.5, 1.0, 1.5, 2), linetype="dashed", color = "black", size = c(0.7, 0.7, 1.5, 0.7, 0.7)) +
+  #  geom_point(color = "black", aes(x = pos, y = median), size = 3) + 
+  #  ylim(c(0, 2.5)) + xlim(c(0, max(as.numeric(tt2b$pos)))) +
+  #  scale_y_continuous(breaks = c(0,.5,1,1.5,2,2.5), labels = c("0","","1","","2",""), limits = c(0,2.5)) +
   #  scale_x_discrete(breaks=posvalues, labels = as.character(round(posvalues/1e6))) + 
-  #  #xlab(label = sprintf("Position (Mbp) %s", chr)) +
-  #  theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1), axis.title.x=element_blank())
+  #  coord_cartesian(clip="off") +
+  #  geom_rangeframe( y=seq(0, 2.5, along.with = tt2b$median)) + 
+  #  theme_tufte() +
+  #  theme(aspect.ratio = 1/5, text=element_text(size=18), axis.ticks.length=unit(.25, "cm"),
+  #        axis.text = element_text(color="black"), axis.title = element_blank()) 
   
-  #Second plot: Boxplot of ratio of normalized tpm bins to median normalized values per bin within chr. 
-  p2 <- ggplot(tt2b, aes(x = pos, y = median, ymin = se.min, ymax = se.max)) + #fatten = 3+proportion/max(proportion)*15) #, fatten = 6+proportion/max(proportion)*15)) + #, fatten = .75 for little to no circles , 
-    geom_vline(xintercept=tt2b$bin, linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +   
-    geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), 
-               linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
+  #change position back to numeric 
+  tt2b$pos <- as.numeric(as.character(tt2b$pos))
+  #create continuous ticks
+  all_ticks <- seq(0,250000000,5000000)
+  major_ticks <- seq(0,250000000,25000000)
+  all_ticks_breaks <- all_ticks[all_ticks < max(tt2b$pos)]; #all_ticks_breaks <- all_ticks_breaks[all_ticks_breaks > min(tt2b$pos)]
+  all_ticks_labs <- as.character(round(all_ticks_breaks/1e6))
+  all_ticks_labs[which(!all_ticks_breaks %in% major_ticks)] <- ""
+  #CZ version of p2 with continuous x-axis
+  p2 <- ggplot(tt2b, aes(x = pos, y = median)) + 
+    geom_vline(xintercept=min(tt2b$pos[which(tt2b$pos >= rng[1])]), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
     geom_hline(yintercept=c(0, 0.5, 1.0, 1.5, 2), linetype="dashed", color = "black", size = c(0.7, 0.7, 1.5, 0.7, 0.7)) +
-    #geom_errorbar(color = "darkred", aes(x = pos, ymin = median,  ymax = median, width = proportion/max(proportion)), size = 1) + #for horizontal error lines
-    geom_pointrange(color = "darkred", aes(y = median, ymin = se.min,  ymax = se.max), size = 1) + 
-    geom_linerange(color = alpha("darkred", alpha = 0.3)) +
-    #geom_errorbarh(color = "darkred", aes(x = pos, y = median, xmin = pos - (proportion/max(proportion)/1.7 + 0.15)/2,  xmax = pos + (proportion/max(proportion)/1.7 + 0.15)/2), size = 1) + 
-    ggtitle(sprintf("Normalized Ratio of Expressed Genes")) + ylim(c(0, min(5, max(tt2b$se.max)))) + 
-    ylab("Normalized ratio") +  theme_gray(base_size=16) + 
-    #scale_y_continuous(limits = c(-.2, 4)) + #add back if you want y-axis limits
-    scale_x_discrete(breaks=posvalues, labels = as.character(round(posvalues/1e6))) + 
-    #xlab(label = sprintf("Position (Mbp) %s", chr)) +
-    theme_bw() +
-    theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1), axis.title.x=element_blank())
-    
-  #Third plot: Scatter points of normalized z-score of fraction of nonzero tpm values compared to boxplot of equivilant control sample only values.
-  #p3 <- ggplot(data = mynonzeros, aes(x=pos, y=fracNonZero)) + ylab("Standarized fraction (sdv)") +  theme_gray(base_size=16) +
-  #  geom_vline(xintercept=as.numeric(unique(tmp2AB$pos)), linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +
+    geom_point(color = "black", aes(x = pos, y = median), size = 3) + 
+    scale_y_continuous(breaks = c(0,.5,1,1.5,2,2.5), labels = c("0","","1","","2",""), limits = c(0,2.5)) +
+    scale_x_continuous(breaks=all_ticks_breaks, labels = all_ticks_labs, limits = c(0, 250000000)) + 
+    coord_cartesian(clip="off") +
+    geom_rangeframe(x=seq(0, max(all_ticks_breaks), along.with = tt2b$pos), y=seq(0, 2.5, along.with = tt2b$median)) + 
+    theme_tufte() +
+    theme(aspect.ratio = 1/5, text=element_text(size=18), axis.ticks.length=unit(.25, "cm"),
+          axis.text = element_text(color="black"), axis.title = element_blank()) 
+
+  #CZ version of p4 with discrete x-axis
+  #p4 <- ggplot(data = tmp2AB, mapping = aes(x = pos, y= value, fill=method)) + 
   #  geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
-  #  ggtitle(sprintf("Fraction of Expressed Genes")) +
-  #  stat_summary(fun.data = myf, geom="boxplot", position = position_dodge(2), fill = alpha("limegreen", alpha = 0.6), 
-  #               mapping = aes(x = pos, y = value, width=proportion/max(proportion)/1.7 + 0.15), data = tmp2,
-  #               size = 1., outlier.shape = NA,
-  #               show.legend = F, varwidth = TRUE, alpha=0.6)+
-  #  # geom_boxplot(position=position_dodge(0), fill = alpha("limegreen", alpha = 0.6), outlier.shape = NA, 
-  #  #              show.legend = F, varwidth = TRUE, alpha=0.6, data = tmp2, mapping = aes(x = pos, y = value, weight=proportion)) + 
-  #  geom_point(show.legend = F, fill = alpha("darkred", alpha = 0.95), stat='identity', size=4.7, colour = "black", pch=21) +
-  #  theme_bw() +
-  #  scale_x_discrete(breaks=posvalues, labels = as.character(round(posvalues/1e6))) + 
-  #  #xlab(label = sprintf("Position (Mbp) %s", chr)) +
-  #  geom_hline(yintercept=c(-2, -1, 0, 1, 2), linetype="dashed", color = "black", size = c(0.5,0.5,1,0.5,0.5)) + 
-  #  theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1), axis.title.x=element_blank())
+  #  geom_hline(yintercept=c(0, 1.0, 2), linetype="dashed", color = "black", size = c(0.7, 1.5, 0.7)) +
+  #  geom_point(position = position_dodge(0.7), show.legend = F, stat='identity', size=3, data = aggsAB, 
+  #             mapping = aes(x=pos, y=fracNonZero, color = method)) +
+  #  scale_colour_manual(values = c("dodgerblue3", "firebrick2")) +
+  #  scale_y_continuous(breaks = c(0,.5,1,1.5,2,2.5), labels = c("0","","1","","2",""), limits = c(0,2.5)) +
+  #  scale_x_discrete(breaks=tt1$pos, labels = as.character(round(as.numeric(as.character(tt1$pos))/1e6))) +
+  #  coord_cartesian(clip="off") +
+  #  geom_rangeframe( y=seq(0, 2.5, along.with = tmp2AB$value)) + 
+  #  theme_tufte() +
+  #  theme(aspect.ratio = 1/5, text=element_text(size=18), axis.ticks.length=unit(.25, "cm"), 
+  #        axis.text = element_text(color="black"), axis.title = element_blank()) 
   
-  #Fourth Plot: boxplot (for each allele) of the normalized fraction of nonzero SNPs per bin within chr for control cells only. Equivilant value for specified cell scatter over boxplots.
-  p4 <- ggplot(data = tmp2AB, mapping = aes(x = pos, y= value, fill=method)) + ylim(c(-0.3,4))+
-    geom_vline(xintercept=as.numeric(unique(tmp2AB$pos)), linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +
-    geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
-    ggtitle(sprintf("Fraction of allele specific expressed SNPs")) +
-    
-    # geom_boxplot(position = position_dodge(0.7), show.legend=F, varwidth=T, alpha=0.6,
-    #              mapping=aes(weight=proportion+0.05, color = method, fill = NA), 
-    #              outlier.shape = NA, notch=F, coef = 0, lwd = 1.1) +
-    # 
-    stat_summary(fun.data = myf, geom="boxplot", position = position_dodge(0.7), fill = NA, 
-                 mapping = aes(x = pos, y = value, width=proportion/max(proportion)/1.7 + 0.15, color = method), 
-                 size = 1., outlier.shape = NA,
-                 show.legend = F, varwidth = TRUE, alpha=0.6)+
-    
-    geom_hline(yintercept=c(0,1,2), linetype="dashed", color = "black", size = c(0.8, 1.5, 0.8)) +
-    geom_point(position = position_dodge(0.7), show.legend = F, stat='identity', size=5.5, data = aggsAB, 
-               mapping = aes(x=pos, y=fracNonZero, color = method), colour = "black", pch=21) +
-    geom_text(position = position_dodge(0.7), show.legend = F, stat='identity', size=2.4, data = aggsAB, colour = "white",
-              mapping = aes(x=pos, y=fracNonZero, label = cntsNonZero)) +
-    theme_gray(base_size=16) + ylab("Normalized Fraction") + 
-    scale_fill_manual(values=c(alpha("dodgerblue", alpha = 0.8), alpha("red3", alpha = 0.8),
-                               alpha("dodgerblue", alpha = 0.8), alpha("red3", alpha = 0.8))) + 
-    scale_colour_manual(values=c(alpha("royalblue3", alpha = 0.95), 
-                                 alpha("firebrick1", alpha = 0.95))) +
-    theme_bw() +
-    theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1)) +
-    scale_x_discrete(breaks=tt1$pos, labels = as.character(round(as.numeric(as.character(tt1$pos))/1e6))) + 
-    xlab(label = sprintf("Position (Mbp) %s", chr)) 
+  #change position back to numeric 
+  aggsAB$pos <- as.numeric(as.character(aggsAB$pos))
+  #create continuous ticks
+  all_ticks <- seq(0,250000000,5000000)
+  major_ticks <- seq(0,250000000,25000000)
+  all_ticks_breaks <- all_ticks[all_ticks < max(aggsAB$pos)]; #all_ticks_breaks <- all_ticks_breaks[all_ticks_breaks > min(aggsAB$pos)]
+  all_ticks_labs <- as.character(round(all_ticks_breaks/1e6))
+  all_ticks_labs[which(!all_ticks_breaks %in% major_ticks)] <- ""
+  #CZ version of p4 with continuous x-axis
+  p4 <- ggplot(data = aggsAB, mapping = aes(x = pos, y = value, fill=method)) + 
+    geom_hline(yintercept=c(0, 1.0, 2), linetype="dashed", color = "black", size = c(0.7, 1.5, 0.7)) +
+    geom_vline(xintercept=min(aggsAB$pos[which(aggsAB$pos >= rng[1])]), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
+    geom_point(position = position_dodge(0.7), show.legend = F, stat='identity', size=3, data = aggsAB, 
+               mapping = aes(x=pos, y=fracNonZero, color = method)) + 
+    scale_colour_manual(values = c("dodgerblue3", "firebrick2")) +
+    scale_y_continuous(breaks = c(0,.5,1,1.5,2,2.5), labels = c("0","","1","","2",""), limits = c(0,2.5)) +
+    scale_x_continuous(breaks=all_ticks_breaks, labels = all_ticks_labs, limits = c(0, 250000000)) +
+    coord_cartesian(clip="off") +
+    geom_rangeframe(x=seq(0, max(all_ticks_breaks), along.with = aggsAB$pos), y=seq(0, 2.5, along.with = aggsAB$fracNonZero)) + 
+    theme_tufte() +
+    theme(aspect.ratio = 1/5, text=element_text(size=18), axis.ticks.length=unit(.25, "cm"), 
+          axis.text = element_text(color="black"), axis.title = element_blank()) 
   
-  #return just the last three visuals as to only show raw data visualizations. 
-  grid.arrange(p2, p4, nrow = 2)
-  
-  #return this if you want to include ML visual.
-  #grid.arrange(p1, p2, p3, p4, nrow = 4)
-  
+
+  ggsave(plot = p2, filename = sprintf("%s.%s.%s.TotalTPM.pdf", myfamily_file, myid_file, chr), path = destDir, device = "pdf", width = 12, height = 3, dpi = 300, units = "in")
+  ggsave(plot = p4, filename = sprintf("%s.%s.%s.AllelicCov.pdf", myfamily_file, myid_file, chr), path = destDir, device = "pdf", width = 12, height = 3, dpi = 300, units = "in")
+  #grid.arrange(p2, p4, nrow = 2)
+  if(save.rds == T) {
+    saveRDS(p2, file = sprintf("%s/%s.%s.%s.TotalTPM.rds", destDir, myfamily_file, myid_file, chr))
+    saveRDS(p4, file = sprintf("%s/%s.%s.%s.AllelicCov.rds", destDir, myfamily_file, myid_file, chr))
+    return( data.table(TPM_file = sprintf("%s/%s.%s.%s.TotalTPM.rds", destDir, myfamily_file, myid_file, chr), var_file = sprintf("%s/%s.%s.%s.AllelicCov.rds", destDir, myfamily_file, myid_file, chr)) )
+  }
   #not needed with current macro plotting function.
   #dev.off()
   #return(p)

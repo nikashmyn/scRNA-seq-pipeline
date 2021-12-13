@@ -1,8 +1,9 @@
-#################################################################################
-# Passed arguments:
-#################################################################################
-#args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data")
+########################
+### Passed Arguments ###
+########################
+
 args <- commandArgs(trailingOnly = TRUE)
+#args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data")
 print(args)
 scriptsdir <- args[1]
 dirpath <- args[2]
@@ -10,9 +11,9 @@ datadir <- args[3]
 mk_vis_dir <- sprintf("mkdir -p %s/visual_results", dirpath)
 system(mk_vis_dir)
 
-#################################################################################
-# loading data:
-#################################################################################
+#####################
+### Load Packages ###
+#####################
 
 require(data.table)
 require(gtools)
@@ -28,9 +29,15 @@ source(sprintf("%s/plots/class_prob_to_cn_level.R", scriptsdir))
 source(sprintf("%s/plots/plot_cn_prediction_probabilities.R", scriptsdir))
 source(sprintf("%s/plots/calc_and_plot_intermediate_pvalue.R", scriptsdir))
 source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots2.R", scriptsdir))
+source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots3.R", scriptsdir))
 source(sprintf("%s/plots/plot_barplots_of_AllelicAndExpBiasPerSamples.R", scriptsdir))
 source(sprintf('%s/plots/plot_cn_and_intermediate_prediction_latest_model_intermediate_bars.R', scriptsdir))
+source(sprintf('%s/plots/plot_pvals_and_tpm_distributions.R', scriptsdir))
 source(sprintf('%s/plots/plot_pvals_and_tpm_distributions_bychr.R', scriptsdir))
+
+####################
+### loading data ###
+####################
 
 #############################Parameters##################################
 
@@ -47,40 +54,44 @@ NUM_OF_FEATURES <- 100
 ##########################Data for Raw Plots###########################
 message("Loading data...")
 
+#load config file
+configs <- readRDS(sprintf("%s/param_config_list.rds", datadir))
+
 #log-space centered tpm object
 adt <- readRDS(sprintf("%s/aggregated_results/adt.rds", dirpath))
 adt.na <- readRDS(sprintf("%s/aggregated_results/adt.na.rds", dirpath))
 adt <- adt.default <- adt[order(seqnames, start, end)]
 adt <- cbind( adt[,c(1:4)], setcolorder(adt[,-c(1:4)], order(colnames(adt[,-c(1:4)]))) )
 
-#TMP: Create a fake object to feed as ML preds. 
+#Create a dummy object to feed into ML preds. 
 adt_fake <- adt[,-c(1:4)]
 adt_fake[,] <- 0
 adt_fake <- cbind(adt[,c(1:4)], adt_fake)
 
 #raw tpm object
 rsemtpm <- readRDS(sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
-#high_qc_ids <- names(which(colSums(rsemtpm>5)>4000)) #original criteria from etai
+
+#Read in QC object and establish high QC criteria
 all_QC <- readRDS(file = sprintf("%s/aggregated_results/all_QC.rds", dirpath))
 high_qc_ids <- as.character(all_QC[which(all_QC$th5 >= quantile(all_QC$th5, c(.10))),]$id)
 
 #Variant matrix in the coding and UTR regions
 coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
-#Low var counts exclusion. Note: both distributions of var counts are fairly similar.
-high_varqc_idsA <- names(which(colSums(coding$cnts.A[,-c(1:2)]) > quantile(colSums(coding$cnts.A[,-c(1:2)]), c(.10))))
-high_varqc_idsB <- names(which(colSums(coding$cnts.B[,-c(1:2)]) > quantile(colSums(coding$cnts.B[,-c(1:2)]), c(.10))))
-high_varqc_ids <- intersect(high_varqc_idsA, high_varqc_idsB)
-high_qc_ids <- intersect(high_qc_ids, high_varqc_ids)
 
-anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
-#samples_to_use <- anno[!LookRNAseq.Exp %in% exclude]$WTA.plate
+#Low var counts exclusion. Note: both distributions of var counts are fairly similar.
+#high_varqc_idsA <- names(which(colSums(coding$cnts.A[,-c(1:2)]) > quantile(colSums(coding$cnts.A[,-c(1:2)]), c(.10))))
+#high_varqc_idsB <- names(which(colSums(coding$cnts.B[,-c(1:2)]) > quantile(colSums(coding$cnts.B[,-c(1:2)]), c(.10))))
+#high_varqc_ids <- intersect(high_varqc_idsA, high_varqc_idsB)
+#high_qc_ids <- intersect(high_qc_ids, high_varqc_ids)
+
+#load cell annotations
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
 columns <- colnames(adt)[-c(1:4)]
-#samples_to_use <- c(intersect(columns, samples_to_use))
 samples_to_use <- c(intersect(columns, anno$WTA.plate))
 high_qc_ids <- intersect(high_qc_ids, samples_to_use)
 
 #columns annotations used in file naming convention for visuals
-col_anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
+col_anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
 dim(col_anno)
 excluded_by_qc <- col_anno$WTA.plate[-which(col_anno$WTA.plate %in% high_qc_ids)]
 col_anno <- col_anno[ WTA.plate %in% high_qc_ids]
@@ -98,9 +109,9 @@ controlIDs <- readRDS(file = sprintf("%s/aggregated_results/reduced_controlIDs.r
 arms <- ganno <- data.table(readRDS(file = sprintf("%s/aggregated_results/ganno.rds", dirpath))) #called arms in visualization script
 centromeres <- readRDS( sprintf("%s/centromeres.rds", datadir) )
 
-#Why???
-controlSampleIDs <- controlSampleIDs[-which(controlSampleIDs %in% "170425_A3")]
-controlSampleIDs2 <- controlSampleIDs2[-which(controlSampleIDs2 %in% "170425_A3")]
+#Exclude this noisy control sample
+#controlSampleIDs <- controlSampleIDs[-which(controlSampleIDs %in% "170425_A3")]
+#controlSampleIDs2 <- controlSampleIDs2[-which(controlSampleIDs2 %in% "170425_A3")]
 
 ##########################Data for OLR Plots###########################
 message("Loading more data...")
@@ -130,29 +141,6 @@ chr.TE <- setnames(OLR_preds_bychr, old = "seqnames", new = "bin_id")
 chr.TE <- as.data.frame(chr.TE, stringsAsFactors = FALSE)
 chr.TE$bin_id <- as.character(chr.TE$bin_id)
 
-##Allele expression (option B (raw aggs by gene)):
-#tmp.chr.Af <- copy(Ms.chr$raw.A)
-#setnames(tmp.chr.Af, old = "seqnames", new = "bin_id")
-#tmp.chr.Bf <- copy(Ms.chr$raw.B)
-#setnames(tmp.chr.Bf, old = "seqnames", new = "bin_id")
-#tmp.chr.Af <- cbind(tmp.chr.Af[,1], tmp.chr.Af[,-1]/(tmp.chr.Af[, -1] + tmp.chr.Bf[, -1]))
-#tmp.chr.Bf <- cbind(tmp.chr.Bf[,1], tmp.chr.Bf[,-1]/(tmp.chr.Af[, -1] + tmp.chr.Bf[, -1]))
-#IDs <- intersect(colnames(chr.TE)[-1], colnames(tmp.chr.Af[-1]))
-#samples_to_use <- c(intersect(samples_to_use, IDs))
-
-#Allele expression (option B (raw aggs by gene)):
-allele_frac_mat.bychr <- readRDS(file=sprintf("%s/aggregated_results/allele_frac_mat.bychr.rds", dirpath))
-chr.Af <- copy(allele_frac_mat.bychr$A)
-setnames(chr.Af, old = "seqnames", new = "bin_id")
-chr.Af$bin_id <- as.character(paste0("chr", chr.Af$bin_id))
-chr.Af$bin_id[23] <- "chrX" #Change chr23 to chrX
-chr.Bf <- copy(allele_frac_mat.bychr$B)
-setnames(chr.Bf, old = "seqnames", new = "bin_id")
-chr.Bf$bin_id <- as.character(paste0("chr", chr.Bf$bin_id))
-chr.Bf$bin_id[23] <- "chrX" #Change chr23 to chrX
-IDs <- intersect(colnames(chr.TE)[-1], colnames(chr.Af[-1]))
-samples_to_use <- c(intersect(samples_to_use, IDs))
-
 #Change the loss category to reflect CN = 0 as well as CN = 1
 rawA <- copy(Ms.chr$raw.A)
 setnames(rawA, old = "seqnames", new = "bin_id")
@@ -172,16 +160,36 @@ indices$chr <- as.character(indices$chr)
 
 for (i in 1:nrow(indices)) {
   value <- as.numeric(chr.TE[which(chr.TE$bin_id == indices$chr[i]), indices$sample[i]])
-  print(value)
   if (value < 1.10) {
-    print("pass change parameter")
-    print(chr.TE[[indices$sample[i]]][which(chr.TE$bin_id == indices$chr[i])])
     chr.TE[[indices$sample[i]]] = replace(chr.TE[[indices$sample[i]]], which(chr.TE$bin_id == indices$chr[i]), .1)
-    #chr.TE[[indices$sample[i]]][which(chr.TE$bin_id == indices$chr[i])] <- .1 #:= .1
-    print(chr.TE[[indices$sample[i]]][which(chr.TE$bin_id == indices$chr[i])])
-    print("changed")
   }
 }
+
+#Allele expression (option B (raw aggs by gene)):
+allele_frac_mat.bychr <- readRDS(file=sprintf("%s/aggregated_results/allele_frac_mat.bychr.rds", dirpath))
+chr.Af <- copy(allele_frac_mat.bychr$A)
+setnames(chr.Af, old = "seqnames", new = "bin_id")
+chr.Af$bin_id <- as.character(paste0("chr", chr.Af$bin_id))
+chr.Af$bin_id[chr.Af$bin_id == "chr23"] <- "chrX" #Change chr23 to chrX
+chr.Bf <- copy(allele_frac_mat.bychr$B)
+setnames(chr.Bf, old = "seqnames", new = "bin_id")
+chr.Bf$bin_id <- as.character(paste0("chr", chr.Bf$bin_id))
+chr.Bf$bin_id[chr.Bf$bin_id == "chr23"] <- "chrX" #Change chr23 to chrX
+IDs <- intersect(colnames(chr.TE)[-1], colnames(chr.Af[-1]))
+samples_to_use <- c(intersect(samples_to_use, IDs))
+
+allele_frac.bychr <- readRDS(file=sprintf("%s/aggregated_results/allele_frac.bychr.rds", dirpath))
+chr.Af2 <- copy(allele_frac.bychr$A)
+setnames(chr.Af2, old = "seqnames", new = "bin_id")
+chr.Af2$bin_id <- as.character(paste0("chr", chr.Af2$bin_id))
+chr.Af2$bin_id[chr.Af2$bin_id == "chr23"] <- "chrX" #Change chr23 to chrX
+chr.Bf2 <- copy(allele_frac.bychr$B)
+setnames(chr.Bf2, old = "seqnames", new = "bin_id")
+chr.Bf2$bin_id <- as.character(paste0("chr", chr.Bf2$bin_id))
+chr.Bf2$bin_id[chr.Bf2$bin_id == "chr23"] <- "chrX" #Change chr23 to chrX
+
+#MOVE TO VISUAL SCRIPT
+allele_frac.bybin <- readRDS(file=sprintf("%s/aggregated_results/allele_frac.bybin.rds", dirpath))
 
 #########################Data for Pval Plot###########################
 
@@ -189,6 +197,7 @@ for (i in 1:nrow(indices)) {
 #source(sprintf("%s/scripts/calculating_pvals_byarm_nikos.R", scriptsdir))
 source(sprintf("%s/scripts/pval_grouped_samples.R", scriptsdir))
 source(sprintf("%s/scripts/calculating_control_pvals_bychr_v3.R", scriptsdir))
+source(sprintf("%s/scripts/calculating_pvals_byarm_v2.R", scriptsdir))
 
 #Add arm level annotations to ourpreds
 preds <- data.table(ourpreds[["cns"]])
@@ -216,41 +225,25 @@ abs_allele_diff_mat.bychr <- readRDS(file=sprintf("%s/aggregated_results/abs_all
 #total SNP counts over both alleles taken after separate allele normalization. ~same as var_mat.bychr. 
 var_mat_sep.bychr <- readRDS(file=sprintf("%s/aggregated_results/var_mat_sep.bychr.rds", dirpath))
 
+adt_bychr2 <- cbind(adt_bychr[,1], adt_bychr[,-1]*2)
+colnames(adt_bychr2) <- colnames(chr.TE)
+
 #add in quadrature and scale by sqrt(2) so that the point (1,1) is 1 in aggregated dim
 matrix_adt.bychr <- as.matrix(adt.bychr[,-c(1)]); matrix_var.bychr <- as.matrix(var_mat_sep.bychr[,-c(1)]);
 matrix_CN_Ratio <- sqrt( ( (matrix_adt.bychr^2) + (matrix_var.bychr^2) ) ) / sqrt(2)
 CN_ratio.bychr <- data.table(cbind(adt.bychr[,c(1)], matrix_CN_Ratio))
 
-message("Loading completed!")
-
-#################################################################################
-# Sanity check plots:
-#################################################################################
-
-#read in pvals
+#Read in Pvals
 non_diploid_chrs_w_vals <- readRDS(file = sprintf("%s/aggregated_results/non_diploid_chromosomes.rds", dirpath))
 
-#plot distribution of pvals across chromosomes
-#tmp <- as.numeric(non_diploid_chrs_w_vals[which(non_diploid_chrs_w_vals[,c("sample")] %in% controlSampleIDs), c("chr")])
-#hist(tmp, breaks=seq(min(tmp)-0.5, max(tmp)+0.5, by=1))
-#length(test[,1])/length(unique(test[,c("sample")]))
-#hist(as.numeric(non_diploid_chrs_w_vals[which(non_diploid_chrs_w_vals[,c("sample")] %in% unlist(unique(golden_samples[["normal"]][,c("sample_id")]))), c("chr")]), breaks=seq(min((as.numeric(non_diploid_chrs_w_vals[which(non_diploid_chrs_w_vals[,c("sample")] %in% unlist(unique(golden_samples[["normal"]][,c("sample_id")]))), c("chr")]))-0.5, max((as.numeric(non_diploid_chrs_w_vals[which(non_diploid_chrs_w_vals[,c("sample")] %in% unlist(unique(golden_samples[["normal"]][,c("sample_id")]))), c("chr")]))+0.5, by=1))))
+message("Loading completed!")
 
-#group and count number of genes in each chromosome
-#adt_byarm <- adt[,c(1:2)] %>% 
-#               group_by(seqnames) %>%
-#                 summarise_all(length)
-
-#Barplot of genes per chr
-#barplot(height = adt_byarm$id, names = adt_byarm$seqnames, cex.names = .75, main = "Number of Genes per chr", ylab = "Number of Genes", xlab = "Chromosomes")
-
-
-#################################################################################
-# plots:
-#################################################################################
+#####################################
+### Run Visual Report in Parallel ###
+#####################################
 
 require(doParallel)
-registerDoParallel(25)
+registerDoParallel(10)
 
 #Pull information for a given sample from ML prediction object
 get_flat_format_tbl <- function(mysampid) {
@@ -274,10 +267,9 @@ plot_pdf <- function(myid = "170223_A5a", pdfFile = "./", chrs = chrs) {
     grid.table(non_diploid_chrs_w_vals[which(non_diploid_chrs_w_vals[,1] == myid),])
   }
   #Plot Bar plot based of allelic and OLR information
-  plot_barplots_of_AllelicAndExpBiasPerSamples(dfs = chr.TE, wt = rep(1:nrow(chr.TE)), 
-                                               fracs = list(Af = chr.Af, Bf = chr.Bf), nogeno = c(),
+  plot_barplots_of_AllelicAndExpBiasPerSamples(dfs = adt_bychr2, wt = rep(1:nrow(chr.TE)), 
+                                               fracs = list(Af = chr.Af2, Bf = chr.Bf2), nogeno = c(),
                                                ids = c(myid), chr = "")
-  colnames(chr.TE[,order()])
   for(chr in chrs) {
     #Chr information
     message(chr)
@@ -288,9 +280,15 @@ plot_pdf <- function(myid = "170223_A5a", pdfFile = "./", chrs = chrs) {
     plot_raw_data_and_prediction_boxplots2(myid = myid, chr = chr, adt = adt,
                                            nonzeros.zs = nonzeros.zs, coding = coding,
                                            preds = adt_fake, controlSampleIDs = controlSampleIDs)
-    #Plot p-vals, tpm ratio, and OLR prediction boxplots for both arms
-    plot_pvals_and_tpm_distributions(myid=myid, chr=chr, destDir=destDir)
-    
+    #Plot raw data visuals function
+    plot_raw_data_and_prediction_boxplots3(myid = myid, chr = chr, adt = adt, allele_frac = allele_frac.bybin,
+                                           nonzeros.zs = nonzeros.zs, coding = coding,
+                                           preds = adt_fake, controlSampleIDs = controlSampleIDs)
+    #Plot p-vals, tpm ratio, and OLR prediction boxplots for chrs and both arms
+    plot_pvals_and_tpm_distributions_bychr(myid=myid, chr=chr, destDir=destDir)
+    if (!chr %in% c("chr13", "chr14", "chr15", "chr22")) {
+      plot_pvals_and_tpm_distributions(myid=myid, chr=chr, destDir=destDir)
+    }
   }
   dev.off()
 }
@@ -299,7 +297,8 @@ plot_pdf <- function(myid = "170223_A5a", pdfFile = "./", chrs = chrs) {
 destDir <- sprintf("%s/visual_results", dirpath)
 system(sprintf("mkdir -p %s", destDir))
 #chrs <- c("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr11", "chr12", "chr16", "chr17", "chr19")
-chrs <- c("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22")
+chrs <- c("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22", "chrX")
+chrs <- chrs[which(!chrs %in% configs$chr_to_excl)]
 #arms_to_exclude <- c("10q", "13q", 18", "20", "21", "22", "X")
 # 14, 15 have had no p arm values and the rest have intentionally excluded arms 
 
@@ -309,14 +308,10 @@ samples_to_visualize <- intersect(col_anno$WTA.plate, samples_to_use)
 #make plots for every sample in anno list "col_anno"
 #This is experimental parallel computation
 foreach( i = c( 1:length(samples_to_visualize) ) ) %dopar% {
-#foreach( i = c( 1:10 ) ) %dopar% {
-    
-#for (i in 1:length(samples_to_visualize)) {}
-#source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots_w_2nd_allelic.R", scriptsdir))
-#for (i in 1:2) {
-  
+
   myid <- col_anno$WTA.plate[col_anno$WTA.plate %in% samples_to_use][i]
   #myid <- "190628_3D"
+  #myid <- "190627_7D"
   pairid <- col_anno$Pairs[col_anno$Pairs %in% samples_to_use][i]
   if(!is.na(pairid)) {
     pdfFile <- sprintf("%s/%s.pair_%s.All_Plots.pdf", destDir, myid, pairid)
@@ -331,6 +326,7 @@ foreach( i = c( 1:length(samples_to_visualize) ) ) %dopar% {
 #Make barcharts by family
 setkey(anno, WTA.plate)
 families <- sort(table(anno[samples_to_visualize][Pairs != "NA" & Pairs != "mother"]$Pairs), decreasing = T)
+if ("" %in% names(families)) { families <- families[which(!names(families) == "")] }
 #exclude_chrs <- c("chr13", "chr18", "chr21", "chr22", "chrX") #for cluster plot, first instated in "normalize_tpm_and_vars_byfamily.R"
 exclude_chrs <- c()
 
@@ -347,6 +343,10 @@ foreach(i = c(1:length(names(families)))) %dopar% {
   p <- plot_barplots_of_AllelicAndExpBiasPerSamples(dfs = chr.TE, 
                                                     wt = rep(1:nrow(chr.TE)), fracs = list(Af = chr.Af, Bf = chr.Bf), nogeno = c(),
                                                     ids = myids, chr = "")
+  q <- plot_barplots_of_AllelicAndExpBiasPerSamples(dfs = adt_bychr2, 
+                                                    wt = rep(1:nrow(adt_bychr2)), fracs = list(Af = chr.Af2, Bf = chr.Bf2), nogeno = c(),
+                                                    ids = myids, chr = "")
+
   #Plot cluster map output by family
   ClusterMap2D_byfamily(adt.bychr, var_mat_sep.bychr, myids, myfamily, exclude_chrs)
   ClusterMap3D_byfamily(adt.bychr, var_mat_sep.bychr, abs_allele_diff_mat.bychr, myids, myfamily, exclude_chrs)
@@ -354,5 +354,5 @@ foreach(i = c(1:length(names(families)))) %dopar% {
   dev.off()
 }
 
-#Just a Sanity check that the code ran to completion
+#Sanity check that the code ran to completion
 print("Done with making visuals")

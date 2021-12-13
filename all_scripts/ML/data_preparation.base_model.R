@@ -179,9 +179,14 @@ length(golden.samples.all)
 samples.all <- unique(c(which.gain$sample_id, which.loss$sample_id, which.normal$sample_id, golden.samples.all))
 
 length(samples.all)
-samples.train <- unique(c(sample(unique(which.gain$sample_id), size = length(unique(which.gain$sample_id))/2),
-                          sample(unique(which.loss$sample_id), size = length(unique(which.loss$sample_id))/2),
-                          sample(unique(which.normal$sample_id), size = length(unique(which.normal$sample_id))/2)))
+#samples.train <- unique(c(sample(unique(which.gain$sample_id), size = length(unique(which.gain$sample_id))/2),
+#                          sample(unique(which.loss$sample_id), size = length(unique(which.loss$sample_id))/2),
+#                         sample(unique(which.normal$sample_id), size = length(unique(which.normal$sample_id))/2)))
+set.seed(configs$seed); dgain <- sample(unique(which.gain$sample_id), size = length(unique(which.gain$sample_id))/2)
+set.seed(configs$seed); dloss <- sample(unique(which.loss$sample_id), size = length(unique(which.loss$sample_id))/2)
+set.seed(configs$seed); dnorm <- sample(unique(which.normal$sample_id), size = length(unique(which.normal$sample_id))/2)
+samples.train <- unique(c(dgain,dloss,dnorm))
+
 length(samples.train)
 #for the test sample group we want it to include samples that are not in the training set and only in the golden standard set
 samples.test.bymethod <- samples.all[!samples.all %in% samples.train]
@@ -233,6 +238,7 @@ get_random_seq <- function(sample_id, arm, size = 20, N = 10, dt, ganno, label =
     }
     N <- newN
   }
+  set.seed(configs$seed)
   rnds <- sample(x = 1:(length(mydt) - size + 1), size = N)
   rnd_segs <- sapply(rnds, function(x) mydt[x:(x + size - 1)]) 
   #print(dim(rnd_segs))

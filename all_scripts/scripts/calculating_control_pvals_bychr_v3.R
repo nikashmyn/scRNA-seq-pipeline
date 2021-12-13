@@ -17,7 +17,7 @@ source(sprintf('%s/scripts/fromRawTPMtoExprsRatio.R', scriptsdir))
 ################
 
 #Annotion list with information on every cell and IDs of control samples
-anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
 controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
 
 #QC Data Frame and high QC IDs based on 5 read cnt threshold for genes
@@ -32,10 +32,13 @@ coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath)) #Raw
 geneRanges <- readRDS(sprintf("%s/geneRanges.rds", datadir))
 rsemtpm <- readRDS(sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
 
+#list of preset parameters for the experiment
+configs <- readRDS(sprintf("%s/param_config_list.rds", datadir))
+
 #new adt object without gene normalization
 adt_tmp <- fromRawTPMtoExprsRatio(rsemtpm, geneRanges, controlSampleIDs, max_pos_col = 6, plusOne = 1, 
-                              zerosAsNA = F, normBySd = F, doNormalizeByControls = F,
-                              maxExp = 1200, quantileOfExp = 0.99, minDetectionLevel = 5, minNumOfSamplesToDetect = 5 )$adt
+                                  zerosAsNA = F, normBySd = F, doNormalizeByControls = F,
+                                  maxExp = 1200, quantileOfExp = 0.99, minDetectionLevel = configs$minDetectionLevel, minNumOfSamplesToDetect = configs$minNumOfSamplesToDetect )$adt
 
 ############################################
 ### Re-Engineer raw variant count Matrix ###
@@ -155,7 +158,7 @@ golden_samples$control_stats_bychr$chr_sds <- golden_samples$control_bychr[,-c(1
 golden_samples$control_stats_bychr$chr_ns <- golden_samples$control_bychr[,-c(1)] %>% group_by(chr) %>% summarise_all(length)
 
 #save adjusted golden samples object
-saveRDS(golden_samples, file = sprintf("%s/aggregated_results/golden_set_tpms.rds", dirpath))
+saveRDS(golden_samples, file = sprintf("%s/aggregated_results/golden_set_tpms_bychr.rds", dirpath))
 
 #############################################################################
 ### Get an adt-like matrix of z-scores from the labeled sample statistics ###

@@ -1,7 +1,20 @@
+##########################
+### Script Explanation ###
+##########################
+
+#Run this script as a part of Data Aggregation script to run the SSM and MA models.
 #running all type of predictions for a sample
 
-#require(data.table)
+#-------------------------------------------------------
+#This script was written by Nikos Mynhier and Etai Jacob.
+
+##############################
+### Load Packages and Data ###
+##############################
+
 require(zoo)
+library(matrixStats)
+require(gridExtra)
 
 message("Loading data..")
 #Read in Data
@@ -11,12 +24,12 @@ nonzeros <- readRDS(file = sprintf("%s/aggregated_results/nonzeros.rds", dirpath
 alleles.all <- readRDS(file = sprintf("%s/aggregated_results/alleles.all.rds", dirpath)) # "/singlecellcenter/etai/ExperimentsData/RNA/ngs/CNV12.2/data/alleles.all.rds"
 ganno <- readRDS(file = sprintf("%s/aggregated_results/ganno.rds", dirpath))
 
+#Variant matrix in the coding and UTR regions
+coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
+
 #Standard Annotations and parameters for analysis
 configs <- readRDS(sprintf("%s/param_config_list.rds", datapath))
 geneRanges <- readRDS(sprintf("%s/geneRanges.rds", datapath))
-
-#Read in "given" objects. Need to figure out how to recreate these.
-#geneSpecific <- readRDS(file = sprintf("%s/geneSpecific.rds", datapath))
 centromeres <- readRDS(file = sprintf("%s/centromeres.rds", datapath))
 
 message("Loading more data..")
@@ -27,25 +40,15 @@ rsemtpm <- readRDS(file = sprintf("%s/aggregated_results/all_experiments_rsemtpm
 nonzeros.zs <- readRDS(file = sprintf("%s/aggregated_results/nonzeros.zs.bin50.rds", dirpath))
 
 #get samples to run based on samples in df
-anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
 columns <- colnames(adt)[-c(1:4)]
 samples_to_use <- c(intersect(columns, anno$WTA.plate))
 
 #get high quality samples from raw tpm values
 all_QC <- readRDS(file = sprintf("%s/aggregated_results/all_QC.rds", dirpath))
-#high_qc_ids <- as.character(all_QC[which(all_QC$th5 >= quantile(all_QC$th5, c(.10))),]$id)
-#high_qc_ids <- intersect(high_qc_ids, samples_to_use)
-
-#Variant matrix in the coding and UTR regions
-coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
-#Low var counts exclusion. Note: both distributions of var counts are fairly similar.
-#high_varqc_idsA <- names(which(colSums(coding$cnts.A[,-c(1:2)]) > quantile(colSums(coding$cnts.A[,-c(1:2)]), c(.10))))
-#high_varqc_idsB <- names(which(colSums(coding$cnts.B[,-c(1:2)]) > quantile(colSums(coding$cnts.B[,-c(1:2)]), c(.10))))
-#high_varqc_ids <- intersect(high_varqc_idsA, high_varqc_idsB)
-#high_qc_ids <- intersect(high_qc_ids, high_varqc_ids)
 
 #Get annotation list of all samples that are in adt (tpm ratio) object
-col_anno <- data.table(read.csv( sprintf("%s/work_in_progress/Annotation_list_long_vnikos_1_9_21.csv", datadir)))
+col_anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
 dim(col_anno)
 col_anno <- col_anno[ WTA.plate %in% samples_to_use]
 dim(col_anno)
@@ -62,33 +65,15 @@ nonzeros <- nonzeros[order(seqnames, start, end)]
 ganno <- ganno[order(seqnames, start, end)]
 stopifnot(sum(ganno$id != adt$id) == 0)
 
-library(matrixStats)
-require(gridExtra)
-
+#Manual input data
 par(mfrow=c(1,1))
+manual_selected_vars6 <- c("geneSpecific.MEDIAN.MEDIAN.GC", "geneSpecific.MEDIAN.MEDIAN.cv.nz", "geneSpecific.MEDIAN.MEDIAN.Length", "geneSpecific.MEAN.MEAN.interspace", "TE.all.SD", "TE.onlyExpressed.MAXSTRETCH", "Frac.nonzeros.MAXSTRETCH", "TE.all.Q95", "TE.onlyExpressed.Q95", "Frac.nonzeros.SD", "TE.onlyExpressed.Q25", "TE.onlyExpressed.Q75", "TE.all.Q05", "Frac.nonzeros.MEAN", "TE.onlyExpressed.MEDIAN", "TE.onlyExpressed.MEAN", "TE.all.Q25", "TE.all.Q75", "TE.all.MEDIAN", "TE.all.MEAN")
 
-manual_selected_vars6 <- c("geneSpecific.MEDIAN.MEDIAN.GC",
-                           "geneSpecific.MEDIAN.MEDIAN.cv.nz",
-                           "geneSpecific.MEDIAN.MEDIAN.Length",
-                           "geneSpecific.MEAN.MEAN.interspace",
-                           "TE.all.SD",
-                           "TE.onlyExpressed.MAXSTRETCH",
-                           "Frac.nonzeros.MAXSTRETCH",
-                           "TE.all.Q95",
-                           "TE.onlyExpressed.Q95",
-                           "Frac.nonzeros.SD",
-                           "TE.onlyExpressed.Q25",
-                           "TE.onlyExpressed.Q75",
-                           "TE.all.Q05",
-                           "Frac.nonzeros.MEAN",
-                           "TE.onlyExpressed.MEDIAN",
-                           "TE.onlyExpressed.MEAN",
-                           "TE.all.Q25",
-                           "TE.all.Q75",
-                           "TE.all.MEDIAN",
-                           "TE.all.MEAN")
+#################################
+### Compute MA and SSM Models ###
+#################################
 
-
+#Function for running the models
 predict_CN <- function(mysample_id, outfname) {
 
   ########## RUNNING MA ###################################
@@ -96,10 +81,6 @@ predict_CN <- function(mysample_id, outfname) {
     chrsToExcludeFromNormalization = c("chrX", "chrM", "chr10")
     MA <- adt[, lapply(.SD, rollapply, width = MA_winSize, FUN=mean, partial = T, align = "center"), # fill = NA_real_ 
               .SDcols = mysample_id, by = seqnames]
-    # MA <- adt[, lapply(.SD, rollmean, k = MA_winSize, fill = "extend" , align = "center"),
-              #.SDcols = mysample_id, by = seqnames]
-    # if you reduce the number genes some arms/chrs dont even have enough genes for one window size.So it returns a logical == FAlSE
-    # I switched to rollapply because it allows for partial windows
     dtm <- MA[, lapply(.SD, median),
               .SDcols = -1, by = "seqnames"]
     myCellMedians <- colMedians(as.matrix(dtm[!(seqnames %in% chrsToExcludeFromNormalization), -1]))
@@ -142,10 +123,10 @@ predict_CN <- function(mysample_id, outfname) {
   
 }
 
+#Run function in loop for each sample
 print("Number of samples: ")
 print(nrow(col_anno))
 for(i in 1:nrow(col_anno)) {
-#for(i in 1:5) {
   
   myid <- col_anno$WTA.plate[i]
   pairid <- col_anno$Pairs[i]
@@ -159,9 +140,8 @@ for(i in 1:nrow(col_anno)) {
   
 }
 
-#Just a Sanity check that the code ran to completion
+#Print sanity check that the code ran to completion
 print("Done with SSM & MA CN predictions")
-
 
 #####################################
 ### Aggregate CN from all samples ###
@@ -175,22 +155,20 @@ files <- list.files(path = inputdir, pattern = "*all_CN_predictions.rds", full.n
 files_names <- strsplit(basename(files), ".", fixed = T)
 file_names <- unlist(lapply(files_names, `[[`, 1))
 
-wta.names <- c(col_anno[,1])[[1]]
+wta.names <- c(col_anno$WTA.plate) #this was c(col_anno[,1][[1]])
 row_anno_col <- c("id", "seqnames", "arm", "start", "end")
-col <- append(c("id", "seqnames", "start", "end"),  t(col_anno[,1]))
+col <- append(c("id", "seqnames", "start", "end"),  as.character(col_anno$WTA.plate)) #this col_anno was called same as above 
 col <- as.character(col)
+col_n <- which(col %in% colnames(coding$A))
 
-preds <- readRDS(files[1])
-
-#Raw allele aggregates:
-#TODO: add allele fraction from coding$A and B at the chr and arm level
-
+#Select SNPs to take if they have at least 10 control samples with hits
 snpstotake <- which(rowSums(coding$A[, controlSampleIDs, with=F])>=10 | rowSums(coding$B[, controlSampleIDs, with=F])>=10)
 
-A <- as.data.frame(coding$A)[snpstotake, col] #copy()
-B <- as.data.frame(coding$B)[snpstotake, col] #copy()
-A <- data.table(A) #coding$A[snpstotake, col, with=TRUE] #copy()
-B <- data.table(B) #[snpstotake, col, with=TRUE] #copy()
+#Reduce to SNPs that are represented in the control samples
+A <- as.data.frame(coding$A)[snpstotake, col_n] 
+B <- as.data.frame(coding$B)[snpstotake, col_n] 
+A <- data.table(A)
+B <- data.table(B)
 
 setkeyv(ganno, cols = c("seqnames", "start", "end"))
 setkeyv(A, cols = c("seqnames", "start", "end"))
@@ -213,7 +191,7 @@ B3 <- B2[, lapply(.SD, function(x) mean(x, na.rm = TRUE)), by="id", .SDcols = -c
 B4 <- merge(ganno[, c("id", "seqnames", "arm", "start", "end")], B3, by = "id")
 B4 <- B4[order(seqnames,start, end)]
 
-
+#Add allelic information to Ms (model aggregate) object
 Ms$raw.A <- copy(A4)
 Ms$raw.B <- copy(B4)
 
@@ -236,11 +214,9 @@ tt <- lapply(preds_to_agg, function(x)  cbind(B4[, row_anno_col, with = F], do.c
 names(tt) <- preds_to_agg
 Ms <- c(Ms, tt)
 
-
 #verifing everything is with the same dimension:
 do.call(rbind, lapply(Ms, function(x) dim(x)))
 saveRDS(Ms, sprintf("%s/CN_predictions.bygene.rds", CNdir))
-
 
 #now let's aggregate data by arm and chromosome and save data for further analysis:
 agg_by_chr <- function(M) {

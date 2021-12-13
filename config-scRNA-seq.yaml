@@ -41,6 +41,8 @@ d_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025d_samples.txt
 e_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025e_samples.txt
 f1_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025f_L1_samples.txt
 f2_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025f_L2_samples.txt
+g1_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025g_L1_samples.txt
+g2_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025g_L2_samples.txt
 misc_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/misc_early_samples.txt
 targ_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/targeted_MN_samples.txt 
 

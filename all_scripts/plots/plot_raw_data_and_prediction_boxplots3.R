@@ -2,11 +2,10 @@
 
 #need to load source('~/WORK/Papers/MLpaper/R/utilities/class_prob_to_cn_level.R')
 
-plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "chr5", th = 10, 
+plot_raw_data_and_prediction_boxplots3 <- function(myid = "170512_B4", chr = "chr5", th = 10, allele_frac,
                                                    adt, nonzeros.zs, coding, preds, eps = 0, controlSampleIDs, doPlot = T) {
   require(ggplot2)
   require(matrixStats)
-  
   
   #get tpm objects for control cells:
   columns <- c("id", "seqnames", "start", "end", controlSampleIDs)
@@ -78,43 +77,28 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
   #allelic analysis: (fraction of nonzero SNPs and total SNP counts)
   #-----------------------------------------------------------------
   
-  #coding SNPs - allele A:
-  aggs.A.zs <- coding$aggs.A
-  
-  #normalizing by sample
-  aggs.A.zs <- cbind(aggs.A.zs[,1:2], sweep(aggs.A.zs[, -c(1:2)], 2, colMeans(as.matrix(aggs.A.zs[, -c(1:2)]))+eps, FUN = "/"))
-  
-  #normalizing by bin
-  aggs.A.zs <- cbind(aggs.A.zs[,1:2], sweep(aggs.A.zs[, -c(1:2)], 1, rowMedians(as.matrix(aggs.A.zs[, controlSampleIDs, with=F]))+eps, FUN = "/"))
-  
-  #Get avg of 50 gene bin total counts for all control samples and record rows with < 3 average 50 gene bin total coverage
+  #Get avg of 50 gene bin total counts for all control samples and record rows with < 3 average 50 gene bin total cnts
   totalCntsA <- cbind(coding$cnts.A[, c(1:2)], meanSites = rowMeans(coding$cnts.A[, controlSampleIDs, with=F]))
   wi <- totalCntsA[seqnames == chr & meanSites < 3]$bin
   
-  #make sites with less than 3 total nonzero SNPs into NA
-  if(length(wi)>0) {
-    aggs.A.zs[aggs.A.zs$bin == wi] = NA
-    coding$cnts.A[coding$cnts.A$bin == wi] = NA
-  }
-  
-  #sweep z-score through total count matrix (coding$cnts.A)
-  totalCntsA_center <- cbind(coding$cnts.A[,1:2], sweep(coding$cnts.A[, -c(1:2)], 1, rowMeans(coding$cnts.A[, ..controlSampleIDs], na.rm = T), FUN = "-") )
-  totalCntsA_zs <- cbind(coding$cnts.A[,1:2], sweep(totalCntsA_center[, -c(1:2)], 1, rowSds(data.matrix(coding$cnts.A[, ..controlSampleIDs]), na.rm = T), FUN = "/") )
-  
   #create object fracNonZero (fraction of nonzero coding SNPs out of mean number of expressed coding SNPs)
   #create object cntsNonZero (total number of nonzero coding SNPs)
-  aggsA <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), aggs.A.zs[seqnames == chr][, c("bin", myid), with=F])
-  aggsAc <- (merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), totalCntsA_zs[seqnames == chr][, c("bin", myid), with=F]))
+  aggsA <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), allele_frac$A[seqnames == chr][, c("bin", myid), with=F])
+  aggsAc <- (merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), coding$cnts.A[seqnames == chr][, c("bin", myid), with=F]))
   names(aggsA)[4] <- "fracNonZero"
   names(aggsAc)[4] <- "cntsNonZero"
-
+  #make sites with less than 3 total nonzero SNPs into NA
+  if(length(wi)>0) {
+    aggsA$fracNonZero[aggsA$bin == wi] = NA
+    aggsAc$cntsNonZero[aggsA$bin == wi] = NA
+  }
   #combine into one dataframe
-  aggsA <- merge(aggsA, aggsAc, by = c("bin", "pos", "proportion"))
+  aggsA <- merge(aggsA, aggsAc, by = c("bin", "pos"))
   #label this object as allele A
   aggsA$method = "Frac Allele A"
   
   #get same value but only for control samples  for allele A
-  tmp <- aggs.A.zs[seqnames == chr, controlSampleIDs, with=F]
+  tmp <- allele_frac$A[seqnames == chr, controlSampleIDs, with=F]
   tmp <- melt(t(tmp))[,2:3]
   colnames(tmp) <- c("bin", "value")
   if(length(wi)>0)
@@ -123,39 +107,26 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
   tmp2A$method = "Ctrl. Frac A"
   
   #Do same process for Allele B
-  
-  #coding SNPs - allele B:
-  aggs.B.zs <- coding$aggs.B
-  #normalizing by sample
-  aggs.B.zs <- cbind(aggs.B.zs[,1:2], sweep(aggs.B.zs[, -c(1:2)], 2, colMeans(as.matrix(aggs.B.zs[, -c(1:2)]))+eps, FUN = "/"))
-  #normalizing by bin
-  aggs.B.zs <- cbind(aggs.B.zs[,1:2], sweep(aggs.B.zs[, -c(1:2)], 1, rowMedians(as.matrix(aggs.B.zs[, controlSampleIDs, with=F]))+eps, FUN = "/"))
-  
+
   #Get avg of 50 gene bin total counts for all control samples and record rows with < 3 average 50 gene bin total tpm
   totalCntsB <- cbind(coding$cnts.B[, c(1:2)], meanSites = rowMeans(coding$cnts.B[, controlSampleIDs, with=F]))
   wi <- totalCntsB[seqnames == chr & meanSites < 3]$bin
   
-  #make sites with less than 3 total nonzero SNPs into NA
-  if(length(wi)>0) {
-    aggs.B.zs[aggs.B.zs$bin == wi] = NA
-    coding$cnts.B[coding$cnts.B$bin == wi] = NA
-  }
-  
-  #sweep z-score through total count matrix (coding$cnts.A)
-  totalCntsB_center <- cbind(coding$cnts.B[,1:2], sweep(coding$cnts.B[, -c(1:2)], 1, rowMeans(coding$cnts.B[, ..controlSampleIDs], na.rm = T), FUN = "-") )
-  totalCntsB_zs <- cbind(coding$cnts.B[,1:2], sweep(totalCntsB_center[, -c(1:2)], 1, rowSds(data.matrix(coding$cnts.B[, ..controlSampleIDs]), na.rm = T), FUN = "/") )
-  
   #create object fracNonZero (fraction of nonzero coding SNPs out of mean number of expressed coding SNPs)
   #create object cntsNonZero (total number of nonzero coding SNPs)
-  aggsB <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), aggs.B.zs[seqnames == chr][, c("bin", myid), with=F])
-  aggsBc <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), totalCntsB_zs[seqnames == chr][, c("bin", myid), with=F])
+  aggsB <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), allele_frac$B[seqnames == chr][, c("bin", myid), with=F])
+  aggsBc <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), coding$cnts.B[seqnames == chr][, c("bin", myid), with=F])
   names(aggsB)[4] <- "fracNonZero"
   names(aggsBc)[4] <- "cntsNonZero"
-  aggsB <- merge(aggsB, aggsBc, by = c("bin", "pos", "proportion"))
+  if(length(wi)>0) {
+    aggsB$fracNonZero[aggsB$bin == wi] = NA
+    aggsBc$cntsNonZero[aggsB$bin == wi] = NA
+  }
+  aggsB <- merge(aggsB, aggsBc, by = c("bin", "pos"))
   aggsB$method = "Frac Allele B"
   
   #get same values but only for control samples for allele B
-  tmp <- aggs.B.zs[seqnames == chr, controlSampleIDs, with=F]
+  tmp <- allele_frac$B[seqnames == chr, controlSampleIDs, with=F]
   tmp <- melt(t(tmp))[,2:3]
   colnames(tmp) <- c("bin", "value")
   if(length(wi)>0)
@@ -260,7 +231,7 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
     theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1), axis.title.x=element_blank())
   
   #Second plot: Boxplot of ratio of normalized tpm bins to median normalized values per bin within chr. 
-  p2 <- ggplot(tt2b, aes(x = pos, y = median, ymin = se.min, ymax = se.max, fatten = 3+proportion/max(proportion)*15)) + #, fatten = 6+proportion/max(proportion)*15)) + #, fatten = .75 for little to no circles
+  p2 <- ggplot(tt2b, aes(x = pos, y = median, ymin = se.min, ymax = se.max,)) + #, fatten = 6+proportion/max(proportion)*15)) + #, fatten = .75 for little to no circles  fatten = 3+proportion/max(proportion)*15
     geom_vline(xintercept=tt2b$bin, linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +   
     geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), 
                linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
@@ -270,34 +241,35 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
     geom_linerange(color = alpha("darkred", alpha = 0.3)) +
     #geom_errorbarh(color = "darkred", aes(x = pos, y = median, xmin = pos - (proportion/max(proportion)/1.7 + 0.15)/2,  xmax = pos + (proportion/max(proportion)/1.7 + 0.15)/2), size = 1) + 
     ggtitle(sprintf("Normalized Ratio of Expressed Genes")) + ylim(c(0, min(5, max(tt2b$se.max)))) + 
-    ylab("Normalized ratio") +  theme_gray(base_size=16) +
+    ylab("Normalized ratio") +  theme_gray(base_size=16) + 
+    #scale_y_continuous(limits = c(-.2, 4)) + #add back if you want y-axis limits
     scale_x_discrete(breaks=posvalues, labels = as.character(round(posvalues/1e6))) + 
     #xlab(label = sprintf("Position (Mbp) %s", chr)) +
     theme_bw() +
     theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1), axis.title.x=element_blank())
   
   #Third plot: Scatter points of normalized z-score of fraction of nonzero tpm values compared to boxplot of equivilant control sample only values.
-  p3 <- ggplot(data = mynonzeros, aes(x=pos, y=fracNonZero)) + ylab("Standarized fraction (sdv)") +  theme_gray(base_size=16) +
-    geom_vline(xintercept=as.numeric(unique(tmp2AB$pos)), linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +
-    geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
-    ggtitle(sprintf("Fraction of Expressed Genes")) +
-    stat_summary(fun.data = myf, geom="boxplot", position = position_dodge(2), fill = alpha("limegreen", alpha = 0.6), 
-                 mapping = aes(x = pos, y = value, width=proportion/max(proportion)/1.7 + 0.15), data = tmp2,
-                 size = 1., outlier.shape = NA,
-                 show.legend = F, varwidth = TRUE, alpha=0.6)+
-    # geom_boxplot(position=position_dodge(0), fill = alpha("limegreen", alpha = 0.6), outlier.shape = NA, 
-    #              show.legend = F, varwidth = TRUE, alpha=0.6, data = tmp2, mapping = aes(x = pos, y = value, weight=proportion)) + 
-    geom_point(show.legend = F, fill = alpha("darkred", alpha = 0.95), stat='identity', size=4.7, colour = "black", pch=21) +
-    theme_bw() +
-    scale_x_discrete(breaks=posvalues, labels = as.character(round(posvalues/1e6))) + 
-    #xlab(label = sprintf("Position (Mbp) %s", chr)) +
-    geom_hline(yintercept=c(-2, -1, 0, 1, 2), linetype="dashed", color = "black", size = c(0.5,0.5,1,0.5,0.5)) + 
-    theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1), axis.title.x=element_blank())
+  #p3 <- ggplot(data = mynonzeros, aes(x=pos, y=fracNonZero)) + ylab("Standarized fraction (sdv)") +  theme_gray(base_size=16) +
+  #  geom_vline(xintercept=as.numeric(unique(tmp2AB$pos)), linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +
+  #  geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
+  #  ggtitle(sprintf("Fraction of Expressed Genes")) +
+  #  stat_summary(fun.data = myf, geom="boxplot", position = position_dodge(2), fill = alpha("limegreen", alpha = 0.6), 
+  #               mapping = aes(x = pos, y = value, width=proportion/max(proportion)/1.7 + 0.15), data = tmp2,
+  #               size = 1., outlier.shape = NA,
+  #               show.legend = F, varwidth = TRUE, alpha=0.6)+
+  #  # geom_boxplot(position=position_dodge(0), fill = alpha("limegreen", alpha = 0.6), outlier.shape = NA, 
+  #  #              show.legend = F, varwidth = TRUE, alpha=0.6, data = tmp2, mapping = aes(x = pos, y = value, weight=proportion)) + 
+  #  geom_point(show.legend = F, fill = alpha("darkred", alpha = 0.95), stat='identity', size=4.7, colour = "black", pch=21) +
+  #  theme_bw() +
+  #  scale_x_discrete(breaks=posvalues, labels = as.character(round(posvalues/1e6))) + 
+  #  #xlab(label = sprintf("Position (Mbp) %s", chr)) +
+  #  geom_hline(yintercept=c(-2, -1, 0, 1, 2), linetype="dashed", color = "black", size = c(0.5,0.5,1,0.5,0.5)) + 
+  #  theme(text = element_text(size=15), axis.text.x = element_text(angle=90, hjust=1), axis.title.x=element_blank())
   
   #Fourth Plot: boxplot (for each allele) of the normalized fraction of nonzero SNPs per bin within chr for control cells only. Equivilant value for specified cell scatter over boxplots.
-  p4 <- ggplot(data = aggsAB, mapping = aes(x = pos, y = cntsNonZero, fill=method)) + #ylim(c(-0.3,4))+
-    geom_vline(xintercept=as.numeric(unique(aggsAB$pos)), linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +
-    geom_vline(xintercept=min(which(as.numeric(as.character(unique(aggsAB$pos))) >= rng[1])), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
+  p4 <- ggplot(data = tmp2AB, mapping = aes(x = pos, y= value, fill=method)) + ylim(c(-0.3,1.3))+
+    geom_vline(xintercept=as.numeric(unique(tmp2AB$pos)), linetype="solid", color = alpha("gray", alpha = 0.4), size = 4) +
+    geom_vline(xintercept=min(which(as.numeric(as.character(unique(tmp2AB$pos))) >= rng[1])), linetype="solid", color = alpha("black", alpha = 0.4), size = 5) +
     ggtitle(sprintf("Fraction of allele specific expressed SNPs")) +
     
     # geom_boxplot(position = position_dodge(0.7), show.legend=F, varwidth=T, alpha=0.6,
@@ -305,15 +277,15 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
     #              outlier.shape = NA, notch=F, coef = 0, lwd = 1.1) +
     # 
     stat_summary(fun.data = myf, geom="boxplot", position = position_dodge(0.7), fill = NA, 
-                 mapping = aes(x = pos, y = cntsNonZero, width=proportion/max(proportion)/1.7 + 0.15, color = method), 
+                 mapping = aes(x = pos, y = value, width=proportion/max(proportion)/1.7 + 0.15, color = method), 
                  size = 1., outlier.shape = NA,
                  show.legend = F, varwidth = TRUE, alpha=0.6)+
     
-    #geom_hline(yintercept=c(0,1,2), linetype="dashed", color = "black", size = c(0.8, 1.5, 0.8)) +
+    geom_hline(yintercept=c(0,.5,1), linetype="dashed", color = "black", size = c(0.8, 1.5, 0.8)) +
     geom_point(position = position_dodge(0.7), show.legend = F, stat='identity', size=5.5, data = aggsAB, 
-               mapping = aes(x=pos, y=cntsNonZero, color = method), colour = "black", pch=21) +
+               mapping = aes(x=pos, y=fracNonZero, color = method), colour = "black", pch=21) +
     geom_text(position = position_dodge(0.7), show.legend = F, stat='identity', size=2.4, data = aggsAB, colour = "white",
-              mapping = aes(x=pos, y=cntsNonZero, label = signif(cntsNonZero,digits=2))) +
+              mapping = aes(x=pos, y=fracNonZero, label = cntsNonZero)) +
     theme_gray(base_size=16) + ylab("Normalized Fraction") + 
     scale_fill_manual(values=c(alpha("dodgerblue", alpha = 0.8), alpha("red3", alpha = 0.8),
                                alpha("dodgerblue", alpha = 0.8), alpha("red3", alpha = 0.8))) + 
@@ -325,7 +297,7 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
     xlab(label = sprintf("Position (Mbp) %s", chr)) 
   
   #return just the last three visuals as to only show raw data visualizations. 
-  grid.arrange(p2, p3, p4, nrow = 3)
+  grid.arrange(p2, p4, nrow = 2)
   
   #return this if you want to include ML visual.
   #grid.arrange(p1, p2, p3, p4, nrow = 4)
@@ -336,5 +308,4 @@ plot_raw_data_and_prediction_boxplots2 <- function(myid = "170512_B4", chr = "ch
   
 }
 
-asdf <- c(1.111111, 2.2222222, 33333.22, 444.00000, 4000.0000002, 202.020)
-signif(asdf,digits=3)
+

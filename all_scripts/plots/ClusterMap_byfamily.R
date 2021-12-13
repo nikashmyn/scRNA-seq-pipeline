@@ -15,7 +15,7 @@ ClusterMap2D_byfamily <- function(adt.bychr, var_mat_sep.bychr, myids, myfamily,
   visual.data <- data.table(TPM = as.numeric(flatten(adt.bychr[,..myids])))
   visual.data$VAR <- as.numeric(flatten(var_mat_sep.bychr[,..myids]))
   visual.data$chr <- as.factor(rep(unique(adt.bychr$seqnames), length = length(visual.data$VAR)))
-  visual.data$cell <- rep(myids, each=23-length(exclude_chrs))
+  visual.data$cell <- rep(myids, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
   
   ####################
   ### Cluster Plot ###
@@ -66,7 +66,7 @@ ClusterMap3D_byfamily <- function(adt.bychr, var_mat_sep.bychr, abs_allele_diff_
   visual.data$VAR <- as.numeric(flatten(var_mat_sep.bychr[,..myids]))
   visual.data$ABS <- as.numeric(flatten(abs_allele_diff_mat.bychr[,..myids]))
   visual.data$chr <- as.factor(rep(unique(adt.bychr$seqnames), length = length(visual.data$VAR)))
-  visual.data$cell <- rep(myids, each=23-length(exclude_chrs))
+  visual.data$cell <- rep(myids, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
   
   ####################
   ### Cluster Plot ###

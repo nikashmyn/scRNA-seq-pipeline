@@ -22,6 +22,18 @@ early_stopping <- callback_early_stopping(monitor ='loss', min_delta=0.0001)
 #this is the best performing and simplest model that was used out of several models explored. 
 #See the script: explore_models_and_data_preprocessing.R
 
+#set_random_seed(123)
+#tensorflow::set_random_seed(123)
+is_tf_2 <- function() {
+  compareVersion("2.0", as.character(tensorflow::tf_version())) <= 0
+}
+
+if (is_tf_2()) {
+  tensorflow::tf$random$set_seed(configs$seed)
+} else {
+  tensorflow::use_session_with_seed(configs$seed)
+}
+
 model %>% 
   layer_dense(units = 1, input_shape = dim(x_train)[2], activation='linear') %>% 
   layer_dense(units = 3, activation = 'softmax') %>%

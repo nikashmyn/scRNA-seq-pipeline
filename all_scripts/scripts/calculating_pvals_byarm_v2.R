@@ -1,41 +1,113 @@
-#Calculating p-values script by Nikos 4/2/2021
+#Calculating p-values script by Nikos 8/18/2021
 
-#Read in data
-#rsemtpm <- readRDS(file = sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
-#controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
-#controlSampleIDs2 <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs2.rds", dirpath))
-#controlIDs <- readRDS(file = sprintf("%s/aggregated_results/controlIDs.rds", dirpath))
-#adt <- adt.default <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.rds", dirpath)))
-#adt.na <- data.table(readRDS(file = sprintf("%s/aggregated_results/adt.na.rds", dirpath)))
-#ganno <- data.table(readRDS(file = sprintf("%s/aggregated_results/ganno.rds", dirpath)))
-#centromeres <- data.table(readRDS(file = sprintf("%s/centromeres.rds", datadir)))
-#arms <- readRDS(file = sprintf("%s/CN_data/CN_predictions.byarm.rds", dirpath))
-golden_samples <- readRDS(sprintf("%s/ML_data/golden_set_ids.rds", dirpath))
+######################
+### Source Scripts ###
+######################
+
+require(data.table)
+require(readxl)
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+#install.packages("factoextra")
+library(factoextra) # clustering algorithms & visualization
+source(sprintf('%s/scripts/fromRawTPMtoExprsRatio.R', scriptsdir))
+
+################
+#### Imports ###
+################
+
+#Annotion list with information on every cell and IDs of control samples
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
+controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
+
+#QC Data Frame and high QC IDs based on 5 read cnt threshold for genes
+all_QC <- readRDS(file = sprintf("%s/aggregated_results/all_QC.rds", dirpath))
+high_qc_ids <- as.character(all_QC[which(all_QC$th5 >= quantile(all_QC$th5, c(.10))),]$id) #Excludes bottom 10%
+
+#Data Frames with TPM and Variant information
+#adt <- readRDS(sprintf("%s/aggregated_results/adt.rds", dirpath)) #Normalized TPM matrix
+coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath)) #Raw Variant matrix in the coding and UTR regions
+
+#import raw gene cnts and gene ranges
+geneRanges <- readRDS(sprintf("%s/geneRanges.rds", datadir))
+rsemtpm <- readRDS(sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", dirpath))
+
+#list of preset parameters for the experiment
+configs <- readRDS(sprintf("%s/param_config_list.rds", datadir))
+
+#new adt object without gene normalization
+adt_tmp <- fromRawTPMtoExprsRatio(rsemtpm, geneRanges, controlSampleIDs, max_pos_col = 6, plusOne = 1, 
+                              zerosAsNA = F, normBySd = F, doNormalizeByControls = F,
+                              maxExp = 1200, quantileOfExp = 0.99, minDetectionLevel = configs$minDetectionLevel, minNumOfSamplesToDetect = configs$minNumOfSamplesToDetect )$adt
+
+############################################
+### Re-Engineer raw variant count Matrix ###
+############################################
 
 #order my data objects 
-adt_ord <- adt[order(seqnames, start, end)]
-adt_ord <- cbind( adt[,c(1:4)], setcolorder(adt[,-c(1:4)], order(colnames(adt[,-c(1:4)]))) )
-ganno_ord <- ganno[order(seqnames, start, end)]
+adt_ord <- adt_tmp[order(seqnames, start, end)]
+adt_ord <- data.table(cbind( adt_tmp[,c(1:4)], setcolorder(adt_tmp[,-c(1:4)], order(colnames(adt_tmp[,-c(1:4)]))) ))
+ganno_ord <- data.table(ganno[order(seqnames, start, end), c("id", "seqnames", "arm", "start", "end")])
 stopifnot(sum(ganno_ord$id != adt$id) == 0)
-
-#exponentiate and divide by col mean
 adt_noanno <- adt_ord[,-c(1:4)]
-adt_noanno <- 2^adt_noanno
 
-means <- colMeans(adt_noanno)
-adt_noanno <- sweep(adt_noanno, 2, means, '/')
+#setkey
+armRanges <- readRDS( sprintf("%s/armRanges.rds", datadir) )[,c("seqnames", "start", "end", "arm")]
+setkeyv(adt_ord, c("seqnames", "start", "end"))
+setkeyv(armRanges, c("seqnames", "start", "end"))
+adt_ord_arm <- foverlaps(adt_ord, armRanges)
+setnames(adt_ord_arm, old = c("i.start", "i.end", "start", "end"), new = c("start", "end", "arm_start", "arm_end"))
+adt_ord_arm <- cbind(adt_ord_arm[,c("id", "seqnames", "arm", "start", "end", "arm_start", "arm_end", "strand", "width")], adt_ord_arm[,-c("id", "seqnames", "arm", "start", "end", "arm_start", "arm_end", "strand", "width")])
 
-#add arm annotation to adt
-adt_anno <- cbind(ganno_ord, adt_noanno)
-adt_arm <- cbind(adt_anno$arm, adt_anno[,-c(1:9)])
-setnames(adt_arm, "V1", "arm")
-#colnames(adt_arm)[1] <- "arm"
-
-
-### group adt object by arm ###
-adt_byarm <- adt_arm %>% 
+#group TPM by chr 
+adt.byarm <- adt_ord_arm[,-c(1,2,4,5,6,7,8,9)] %>%
   group_by(arm) %>%
   summarise_all(mean, na.rm = TRUE)
+adt.byarm <- data.table(adt.byarm)
+
+#normalize adt columns
+adt_rowmeans <- rowMeans(adt.byarm[,..controlSampleIDs], na.rm = T)
+adt_rowmeans_mat_reciprocal <- data.table(replicate(ncol(adt.byarm[,-c(1)]), adt_rowmeans))
+adt.byarm <- cbind(adt.byarm[,c(1)] , (adt.byarm[,-c(1)] - adt_rowmeans_mat_reciprocal))
+
+adt.byarm <- cbind(adt.byarm[,c(1)], 2^adt.byarm[,-c(1)])
+adt3_colmeans <- colMeans(adt.byarm[,-c(1)], na.rm = T)
+adt3_colmeans_mat_reciprocal <- data.table(1/(t(replicate(nrow(adt.byarm), adt3_colmeans))))
+adt3_colmeans_mat_reciprocal[adt3_colmeans_mat_reciprocal == Inf] <- 0 
+adt.byarm <- cbind(adt.byarm[,c(1)] , (adt.byarm[,-c(1)] * adt3_colmeans_mat_reciprocal))
+
+#Read in data
+golden_samples <- readRDS(sprintf("%s/ML_data/golden_set_ids.rds", dirpath))
+
+#Read in grouped sample information
+hand_samples <- readRDS(sprintf("%s/aggregated_results/grouped_control_aneuploidies.rds", dirpath))
+
+#
+hand_samples_x2 <- rbind(hand_samples, hand_samples)
+hand_samples_p <- paste(hand_samples$chr, "p", sep = "")
+hand_samples_q <- paste(hand_samples$chr, "q", sep = "")
+hand_samples_x2$chr <- append(hand_samples_p, hand_samples_q)
+hand_samples <- hand_samples_x2
+setnames(hand_samples, "chr", "arm")
+hand_samples <- hand_samples[-which(hand_samples$arm %in% c("13p", "14p", "15p", "22p")),] #remove 13p, 14p, 15p, 22p because they are too small to have genes covering them. 
+
+#change loss and gain examples to hand picked grouped samples
+golden_samples$loss <- hand_samples[which(hand_samples$CN == 1),c(1,3)]
+golden_samples$gain <- hand_samples[which(hand_samples$CN == 3),c(1,3)]
+setnames(golden_samples$loss, old = "ID", new = "sample_id")
+setnames(golden_samples$gain, old = "ID", new = "sample_id")
+
+#add chr column to golden samples by adjusting arm strings
+#golden_samples$normal$chr <- gsub('.{1}$', '', golden_samples$normal$arm)
+#golden_samples$normal$chr <- paste0("chr", golden_samples$normal$chr)
+#golden_samples$loss$chr <- paste0("chr", golden_samples$loss$chr)
+#golden_samples$gain$chr <- paste0("chr", golden_samples$gain$chr)
+
+#Change name convention
+adt_byarm <- adt.byarm
+#setnames(adt_byarm, "seqnames", "chr")
+adt_byarm$arm <- as.character(adt_byarm$arm)
+adt_byarm <- as.data.frame(adt_byarm, col.names = colnames(adt_bychr))
 
 ### get adt values for golden set regions ###
 
@@ -85,11 +157,13 @@ golden_samples$gain_stats_byarm$sd <- sd(golden_samples$gain_byarm$tpm)
 golden_samples$gain_stats_byarm$n <- length(golden_samples$gain_byarm$tpm)
 
 #Get control samples' tpm by arm and by chr
-adt_control_normal_byarm <- c("sample", "arm", "tpm")
+adt_control_normal_byarm <- data.table() #"sample", "arm", "tpm")
 for (i in 1:length(controlSampleIDs)) {
-  adt_control_normal_byarm <- rbind( adt_control_normal_byarm, cbind( controlSampleIDs[i], cbind( data.frame(adt_byarm$arm), data.frame(unname(adt_byarm[,controlSampleIDs[i]])) ) ) )
+  adt_control_normal_byarm <- rbind( adt_control_normal_byarm, cbind( rep(controlSampleIDs[i], length(adt_byarm$arm)), cbind( data.frame(adt_byarm$arm), data.frame(unname(adt_byarm[,controlSampleIDs[i]])) ) ) )
 }
-colnames(adt_control_normal_byarm) <- adt_control_normal_byarm[c(1),]; adt_control_normal_byarm <- adt_control_normal_byarm[-c(1),]
+colnames(adt_control_normal_byarm) <- c("sample", "arm", "tpm")
+#colnames(adt_control_normal_byarm) <- adt_control_normal_byarm[c(1),];
+#adt_control_normal_byarm <- adt_control_normal_byarm[-c(1),]
 adt_control_normal_byarm$tpm <- sapply(adt_control_normal_byarm$tpm, as.numeric)
 golden_samples$control_byarm <- data.table(adt_control_normal_byarm)
 
@@ -106,7 +180,7 @@ golden_samples$control_stats_byarm$arm_ns <- golden_samples$control_byarm[,-c(1)
 
 #save adjusted golden samples object
 golden_tpms <- golden_samples
-saveRDS(golden_tpms, file = sprintf("%s/aggregated_results/golden_set_tpms.rds", dirpath))
+saveRDS(golden_tpms, file = sprintf("%s/aggregated_results/golden_set_tpms_byarm.rds", dirpath))
 
 #############################################################################
 ### Get an adt-like matrix of z-scores from the labeled sample statistics ###
@@ -167,53 +241,8 @@ colnames(pval_matrix_gain_byarm) <- colnames(adt_byarm)
 colnames(pval_matrix_control_byarm) <- colnames(adt_byarm)
 colnames(pval_matrix_control_byarm_specific) <- colnames(adt_byarm)
 
-
 saveRDS(pval_matrix_loss_byarm, file = sprintf("%s/aggregated_results/pval_matrix_loss_byarm.rds", dirpath))
 saveRDS(pval_matrix_normal_byarm, file = sprintf("%s/aggregated_results/pval_matrix_normal_byarm.rds", dirpath))
 saveRDS(pval_matrix_gain_byarm, file = sprintf("%s/aggregated_results/pval_matrix_gain_byarm.rds", dirpath))
 saveRDS(pval_matrix_control_byarm, file = sprintf("%s/aggregated_results/pval_matrix_control_byarm.rds", dirpath))
 saveRDS(pval_matrix_control_byarm_specific, file = sprintf("%s/aggregated_results/pval_matrix_control_byarm_specific.rds", dirpath))
-
-#We can use the pval_martix_normal to show arms that are clearly not a part of the normal CN distribution. 
-#H_0 = tpm for an arm belongs to the normal CN dist.
-#H_a = tpm for an arm does not belong to the normal CN dist
-#low p-vals show arms where we should reject the null hypothesis in favor of the alternative. 
-#Or a low p-val shows an arm most likely does not belong to the normal CN dist. 
-#aka an arm with a low pval is likely an abnormal CN.
-
-###############
-### VISUALS ###
-###############
-
-#destDir <- sprintf("%s/visual_results/pval_plots", dirpath)
-#system(sprintf("mkdir -p %s", destDir))
-#
-##main data to be plotted byarm
-#boxplots.vals <- c()
-#boxplots.vals$loss <- golden_samples$loss_byarm$tpm; boxplots.vals$normal <- golden_samples$normal_byarm$tpm; boxplots.vals$gain <- golden_samples$gain_byarm$tpm; boxplots.vals$control <- golden_samples$control_byarm$tpm;
-#dist_colors <- c("deepskyblue4", "darkorchid4", "darkred", "darkgreen")
-#point_colors <- c("green", "yellow")
-#
-##Plot figures at arm level
-#for ( i in 2:ncol(pval_matrix_normal_byarm) ) { #2:3) { #
-#  myid <- colnames(pval_matrix_normal_byarm)[i]
-#  pdfFile <- sprintf("%s/%s.pval_boxplot_byarm.pdf", destDir, myid)
-#  pdf(file = pdfFile, width = 10, height = 14)
-#  for ( j in 1:nrow(pval_matrix_normal_byarm) ) {
-#    boxplot( boxplots.vals, xlab="CN State", ylab="Normalized Ratio of Arm Average TPM",
-#             pch = 21, bg = dist_colors, axes = F, frame.plot = FALSE, col = dist_colors)
-#    grid(col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
-#    mtext(side = 1, text = names(boxplots.vals), at = c(1,2,3,4),
-#          col = "grey20", line = 1, cex = 0.9)
-#    mtext(side = 2, text = c(0.5, 1.0, 1.5, 2.0), at = c(0.5, 1.0, 1.5, 2.0),
-#          col = "grey20", line = 1, cex = 0.9)
-#    abline(a = as.numeric(as.character(adt_byarm[j,i])), b=0, col="yellow")
-#    title( sprintf("%s | %s", colnames(pval_matrix_normal_byarm[j,..i]), pval_matrix_normal_byarm[j,1]) )
-#    text(x=1, y = 2.15, labels = sprintf("P-Value = %s", signif(pval_matrix_loss_byarm[j,..i], digits = 2)), col="black", cex=.8)
-#    text(x=2, y = 2.15, labels = sprintf("P-Value = %s", signif(pval_matrix_normal_byarm[j,..i], digits = 2)), col="black", cex=.8 )
-#    text(x=3, y = .15, labels = sprintf("P-Value = %s", signif(pval_matrix_gain_byarm[j,..i], digits = 2)), col="black", cex=.8 )
-#    text(x=4, y = .15, labels = sprintf("P-Value = %s", signif(pval_matrix_control_byarm[j,..i], digits = 2)), col="black", cex=.8 )
-#  }
-#  dev.off()
-#}
-
