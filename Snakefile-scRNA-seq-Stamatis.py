@@ -4,10 +4,8 @@
 
 os.chdir(config["OUTDIR"]) #change the working directory to the outdir from config
 skdir = config["SNAKEDIR"] #pull locations of the git clone from config 
-OUTDIR = f'{config["OUTDIR"]}/data' #add buffer data directory at outdir from config
+OUTDIR = f'{config["OUTDIR"]}/data' 
 datadir = config["DATADIR"]
-
-#TODO: Fix config['MAX_THREADS'] issue where it is setting it to 1 rather than 16
 
 ################
 #### IMPORTS ###
@@ -100,10 +98,6 @@ all_samples.extend(targ_samples)
 ########################
 ### INPUT-ONLY RULES ###
 ########################
-#rule index_genome:
-#    input:
-#        starindex = "/pellmanlab/stam_niko/refgenomes/STAR/Gencode.v25/", #SAindex",
-#        rsemindex = "/pellmanlab/stam_niko/refgenomes/RSEM/Gencode.v25/" #genecode.v25"
 rule run_pipeline:
     input:
         expand("{path}/visual_results/.mockfile.visuals.txt", path=OUTDIR)
@@ -132,7 +126,6 @@ rule gen_call_variant:
     input:
         [expand("{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
 
-
 rule run_call_variant:
     input:
         expand("{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", path=OUTDIR, experiment=experiments, chrs=chroms)
@@ -149,15 +142,6 @@ rule run_data_aggregation_macro:
     input:
         expand("{path}/aggregated_results/.mockfile.data_aggregation_macro.txt", path=OUTDIR)
 
-rule run_ML:
-    input:
-        expand("{path}/aggregated_results/.mockfile.mlscript.txt", path=OUTDIR)
-
-rule run_data_visualization:
-    input:
-        expand("{path}/visual_results/.mockfile.visuals.txt", path=OUTDIR)
-
-
 #######################
 ### GENOME INDEXING ###
 #######################
@@ -165,10 +149,10 @@ rule run_data_visualization:
 #premapping and aligning step for STAR
 rule generate_genome_indexes:
     input:
-        in_fasta = config["reference_unzip"], #CHANGE TO V25
-        in_gtf = config["reference_gtf_unzip"] #CHANGE TO V25
+        in_fasta = config["reference_unzip"], 
+        in_gtf = config["reference_gtf_unzip"] 
     output:
-        ref_dir = f"{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25" #CHANGE TO V25
+        ref_dir = f"{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25"
     params:
         runMode = "genomeGenerate",
         overhang = config["readlength"] - 1
@@ -186,7 +170,7 @@ rule prep_rsem:
     output:
         transcriptomedir = f"{datadir}/refgenomes/RSEM/Gencode.v25/"
     params:
-        transcriptomename = f"{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
+        transcriptomename = f"{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", 
     threads: config["MAX_THREADS"]
     shell:
         "rsem-prepare-reference -gtf {input.gtf} -p {threads} --star {input.fasta} {params.transcriptomename} "
@@ -195,25 +179,18 @@ rule prep_rsem:
 ### PREPROCESSING ###
 #####################
 
-#SN218_Run1065_Lane1_190717_Nextera_1A10_L_166350_BCStamatis_Nextera384_190718_P1_A10.demult.bam.qsort.bam.R1.fastq.gz
 #mapping, aligning, tagging and sorting step
 rule STAR_alignment:
     input:
         R1 = "%s/all_fastqs/%s.R1.fastq.gz" % (datadir, "{samples}"),         
         R2 = "%s/all_fastqs/%s.R2.fastq.gz" % (datadir, "{samples}"),
-        #R1 = [expand("{datadir}/all_fastqs/{samples}.R1.fastq.gz", datadir=datadir, samples=all_samples)], #Chance to simplify name here
-        #R2 = [expand("{datadir}/all_fastqs/{samples}.R2.fastq.gz", datadir=datadir, samples=all_samples)],
         ref_dir =  f"{datadir}/refgenomes/STAR/Gencode.v25/gencode.v25",
         gtf = f'{datadir}/refgenomes/Gencode/v25/gencode.v25.primary_assembly.annotation.gtf',
-    output: #get rid of mockfile by putting one of the output files here and keeping names where it is.
+    output:
         mock = "{path}/{experiment}/STAR/.{samples}_mockfile.txt"
-        #mock = [expand("{path}/{experiment}/STAR/.{samples}_mockfile.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
     params:
         names = "{path}/{experiment}/STAR/{samples}.",
-        #names = [expand("{path}/{experiment}/STAR/{samples}.", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
         sample = "{samples}"
-        #sample = expand("{samples}", samples=all_samples)
-#    threads: 4 #config["MAX_THREADS"]
     shell:
         """
         STAR \
@@ -245,8 +222,6 @@ rule STAR_alignment:
         --outSAMattrRGline ID:{params.sample} SM:{params.sample} \
         && touch {output.mock} 
         """ 
-        #IDEA: instead of touching mockfile, && index and use the index for the snakemake file tracing
-        #--limitBAMsortRAM 171,798,691,840       
  
 #MARK DUPLICATES IS CONTRAINDICATED BECAUSE DUPLICATION RATE WAS <5%.
        
@@ -263,9 +238,8 @@ rule rsem_prep_bam:
     params:
         bam_in = "{path}/{experiment}/STAR/{samples}.Aligned.toTranscriptome.out.bam",
         bam_out_name = "{path}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out"
-    #threads: 4
     shell:
-        "convert-sam-for-rsem {params.bam_in} {params.bam_out_name} " #correct bam format for rsem
+        "convert-sam-for-rsem {params.bam_in} {params.bam_out_name} " 
         "&& touch {output.mock} "
 
 #Run RSEM calculations
@@ -276,13 +250,11 @@ rule rsem_calc_expr:
         mock = "{path}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt"
     params:
         bam_in = "{path}/{experiment}/RSEM/{samples}.Aligned.toTranscriptome.rsem.out.bam",
-        ref_name = f"{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", #remove end .
+        ref_name = f"{datadir}/refgenomes/RSEM/Gencode.v25/genecode.v25.", 
         sample_name = "{path}/{experiment}/RSEM/output/{samples}",
-        options = "--paired-end --no-bam-output --estimate-rspd ", #--calc-pme", #works for 99.9% of samples but some are too small for pme # --calc-ci ", calc-ci giving error maybe bug in version
-#        tmp = "--temporary-folder /pellmanlab/stam_niko/data/tmp/"
-    #threads: 4
+        options = "--paired-end --no-bam-output --estimate-rspd ", 
     shell:
-        "rsem-calculate-expression {params.options} --alignments " # --num-threads {threads} "
+        "rsem-calculate-expression {params.options} --alignments "
         "{params.bam_in} {params.ref_name} {params.sample_name} "
         "&& touch {output.mock} "
  
@@ -316,7 +288,7 @@ rule splitncigarreads:
         bam_out = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.out.bam" 
     params:
         bam_in =  "{path}/{experiment}/STAR/{samples}.Aligned.sortedByCoord.out.bam",
-        options = "--create-output-bam-index true", # --read-filter ReassignOneMappingQuality", # -RMQF 255 -RMQT 60",
+        options = "--create-output-bam-index true",
         intervals = chrom_intervals
     shell:
         "samtools index {params.bam_in} "
@@ -346,7 +318,7 @@ rule index_RG_bams:
 #Annotated indexed bams are now ready to be variant called with unified genotyper (UG). This script writes files with the UG calls. UG is fastest because it doesn't construct allles like heplotype caller.
 rule etai_genotype_generate_call:
     input:
-        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))] #I think this could be done with out list comp as in alignment step ^
+        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
     output:
         mockfile = "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt"
     params:
@@ -373,7 +345,6 @@ rule etai_genotype_run:
         "{path}/{experiment}/Variants/{experiment}_RPE_hets_GT.UG_jobs.{chrs}.sh"
     log:
         "{path}/{experiment}/Variants/{experiment}.rungenotypecmds.{chrs}.log"
-    # threads: 25 # didnt put {threads} below because I want the jobs to always be 25 for this part no matter what I put in cmd line
     shell:
         "sh {params} 2> {log} " # "parallel --jobs {threads} < {params} "
         "&& touch {output}"
@@ -405,13 +376,11 @@ rule aggregate_data:
         wk_dir = f"{OUTDIR}",
         script = f"{skdir}/all_scripts/scripts/Analysis_Etai_Snakemake.R",
         datadir = f"{datadir}"
-    threads: 1 #13 I dont think the multiple cores works
+    threads: 1
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.expr} {threads} "
         "&& touch {output.mock_out} "
 
-#We now combine the matrices for each experiment into 3 large full project matrices. One variant matrix. One TPM matrix. One QC matrix.
-#At the end of this script SSM and MA models are run on the aggregated matrices. 
 rule aggregate_data_macro_and_models:
     input:
         mock_in = [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))],
@@ -425,39 +394,5 @@ rule aggregate_data_macro_and_models:
         datadir = f"{datadir}"
     shell:
         "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.all_experiments} "
-        "&& touch {output.mock_out} "
-
-#Data Matrices and simple models are used to run main Ordinal Logistic Regression (OLR) model. 
-rule machine_learning_model:
-    input:
-        mock_in = f"{OUTDIR}/aggregated_results/.mockfile.data_aggregation_macro.txt",
-    output:
-        mock_out = f"{OUTDIR}/aggregated_results/.mockfile.mlscript.txt",
-    params:
-        script_dir = f"{skdir}/all_scripts",
-        wk_dir = f"{OUTDIR}",
-        script = f"{skdir}/all_scripts/ML/Run_ML.R",
-        datadir = f"{datadir}"
-    shell:
-        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} "
-        "&& touch {output.mock_out} "
-
-###########################
-### DATA VISUALIZATION  ###
-###########################
-
-#Raw data and model outputs are used to visualize results. 3 raw data visuals. 2 OLR based visuals.
-rule visualization_script:
-    input:
-        mock_in = f"{OUTDIR}/aggregated_results/.mockfile.mlscript.txt",
-    output:
-        mock_out = f"{OUTDIR}/visual_results/.mockfile.visuals.txt",
-    params:
-        script_dir = f"{skdir}/all_scripts",
-        wk_dir = f"{OUTDIR}",
-        script = f"{skdir}/all_scripts/plots/visual_generator_Nikos.R",
-        datadir = f"{datadir}"
-    shell:
-        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir}"
         "&& touch {output.mock_out} "
 

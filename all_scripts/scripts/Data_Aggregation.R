@@ -39,9 +39,6 @@ source( sprintf('%s/plots/class_prob_to_cn_level.R', scriptsdir) )
 
 #new annotation lists are not comprehensive. So older versions are needed for all samples.
 anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
-#anno <- anno[which(!anno$WTA.plate %in% c("181013A_3G", "190701_5B", "210104_2G", "210621_10H", "171205_7G")),]
-#write.csv(anno, sprintf("%s/work_in_progress/annotation_list.csv", datadir), row.names = F)
-#first four are excluded because they were not sequenced (exclude0). last one is excluded because it is an unsuitable BAM for RSEM, so RSEM couldnt process (exclude3). 
 
 #Standard set of annotations for all genes
 geneRanges <- readRDS(sprintf("%s/geneRanges.rds", datadir))
@@ -318,10 +315,8 @@ saveRDS(alleles.all.frac, file = sprintf("%s/aggregated_results/alleles.all.frac
 
 #list of preset parameters for the experiment
 configs <- readRDS(sprintf("%s/param_config_list.rds", datadir))
-#configs$minDetectionLevel <- 5 #manual adjustment of analysis config parameters.
-#configs$minNumOfSamplesToDetect <- ceiling(length(controlSampleIDs)*.15) #manual adjustment of analysis config parameters.
-#configs$minNumOfSamplesToDetect <- 3 #manual adjustment of analysis config parameters.
-#saveRDS(configs, sprintf("%s/param_config_list.rds", datadir))
+configs$minNumOfSamplesToDetect <- ceiling(length(controlSampleIDs)*.15) #manual adjustment of analysis config parameters.
+saveRDS(configs, sprintf("%s/param_config_list.rds", datadir))
 
 #Generete main TPM object that is logged and normalized by control values
 generate_adt_adt0_adt.na_and_nonzeros_data(dirpath = wkpath, th = 4, scriptsdir = scriptsdir, datadir = datadir, normBySd = F) 
@@ -344,17 +339,15 @@ generate_ganno2(dirpath = wkpath, datapath = datadir)
 #Create chr binned normalized matrices for TPM and Variant Counts
 source(sprintf("%s/scripts/normalize_tpm_and_vars_bychr2.R", scriptsdir))
 source(sprintf("%s/scripts/normalize_tpm_and_vars_bychr3.R", scriptsdir))
-source(sprintf("%s/scripts/normalize_tpm_and_vars_bychr4.R", scriptsdir))
 
+##Generate the arms object made of SSM, MA, & allelic CN predictions
+#datapath <- datadir
+#CNdir <- sprintf("%s/CN_data", dirpath)
+#mk_CN_dir <- sprintf("mkdir -p %s/CN_data", dirpath)
+#system(mk_CN_dir)
+#source(sprintf("%s/scripts/run_all_CN_predictions_for_sample_nikos.R", scriptsdir))
 
-#Generate the arms object made of SSM, MA, & allelic CN predictions
-datapath <- datadir
-CNdir <- sprintf("%s/CN_data", dirpath)
-mk_CN_dir <- sprintf("mkdir -p %s/CN_data", dirpath)
-system(mk_CN_dir)
-source(sprintf("%s/scripts/run_all_CN_predictions_for_sample_nikos.R", scriptsdir))
-
-print("done with CN predictions")
+#print("done with CN predictions")
 #####################################
 # Add QC to annotations for new list:
 #####################################
@@ -387,4 +380,3 @@ write.csv(new_anno, sprintf("%s/aggregated_results/analysis_list.csv", dirpath))
 
 #ready to run "Run_ML.R" script
 print("Done")
-

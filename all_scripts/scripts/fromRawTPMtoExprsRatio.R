@@ -1,7 +1,7 @@
 #the same as "fromRawTPMtoMLInput" but mean on log space and not mean before log transform
 fromRawTPMtoExprsRatio <- function(rsemtpm, geneRanges, controlSampleIDs, max_pos_col = 6, plusOne = 1, min_sd = 0.0001, 
                                  zerosAsNA = F, normBySd = F,
-                                 maxExp = 1200, quantileOfExp = 0.99, minDetectionLevel = 5, minNumOfSamplesToDetect = 3, 
+                                 maxExp = 1200, quantileOfExp = 0.99, minDetectionLevel = 5, minNumOfSamplesToDetect = 30, 
                                  geneInterspaceLogBase = 8, interspaceCoef = 5, doNormalizeByControls = F) {
   require(data.table)
   require(matrixStats)
@@ -25,11 +25,12 @@ fromRawTPMtoExprsRatio <- function(rsemtpm, geneRanges, controlSampleIDs, max_po
   message("NAs = ", sum(is.na(M)))
   
   quant99 <- unname(quantile(as.matrix(M), quantileOfExp, na.rm=T))
-  q <- min(maxExp, unname(quantile(as.matrix(M), quantileOfExp, na.rm=T)))
-  M[M > q] <- q
-  message("Quantile q = ", q)
+  wi <- which(rowSums(M[, ..controlSampleIDs] >= quant99) >= 1)
+  M <- M[-wi,]
+  message("Quantile q = ", quant99)
+  #wi2 <- which(rowSums(dt[, ..controlSampleIDs] >= quant99) >= 1)
+  dt <- dt[-wi,]
   dt2go <- copy(dt[, -c(1:max_pos_col), with=F])
-  dt2go[dt2go>q] <- q
   
   #log before mean:
   dt2go <- log2(dt2go + plusOne)

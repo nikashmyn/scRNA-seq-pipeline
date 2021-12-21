@@ -3,7 +3,7 @@
 #need to load source('~/WORK/Papers/MLpaper/R/utilities/class_prob_to_cn_level.R')
 
 plot_raw_data_and_prediction_boxplots4 <- function(myfamily_file = "F258", myid_file = "F258.3", myid = "210503_9C", chr = "chr5", destDir = "/pellmanlab/stam_niko/rerun_6_9_2021/data/visual_results", th = 10, 
-                                                   adt, nonzeros.zs, coding, preds, eps = 0, controlSampleIDs, doPlot = T, save.rds = F) {
+                                                   adt, coding, preds, eps = 0, controlSampleIDs, doPlot = T, save.rds = F) { #nonzeros.zs,
   require(ggplot2)
   require(matrixStats)
   require(ggthemes)
@@ -167,20 +167,20 @@ plot_raw_data_and_prediction_boxplots4 <- function(myfamily_file = "F258", myid_
   #--------------------------------
   
   #normalizing nonzeros.zs (imported from previous script) by bin 
-  mynonzeros <- nonzeros.zs #nonzero.zs is the z-score of the fraction of nonzero tpm values.
-  mynonzeros0 <- cbind(mynonzeros[,1:2], sweep(mynonzeros[, -c(1:2)], 1, rowMedians(as.matrix(mynonzeros[, controlSampleIDs, with=F]))+eps, FUN = "-"))
-  
-  #merge annotations and relabel
-  mynonzeros <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), mynonzeros0[seqnames == chr][, c("bin", myid), with=F])
-  names(mynonzeros)[4] <- "fracNonZero"
-  mynonzeros$method = "Sample Non Zeros"
-  mynonzeros$pos <- factor(mynonzeros$pos)
-  
-  #Get control version of mynonzeros object
-  tmp <- mynonzeros0[seqnames == chr, controlSampleIDs, with=F]
-  tmp <- melt(t(tmp))[,2:3]
-  colnames(tmp) <- c("bin", "value")
-  tmp2 <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), tmp)
+  #mynonzeros <- nonzeros.zs #nonzero.zs is the z-score of the fraction of nonzero tpm values.
+  #mynonzeros0 <- cbind(mynonzeros[,1:2], sweep(mynonzeros[, -c(1:2)], 1, rowMedians(as.matrix(mynonzeros[, controlSampleIDs, with=F]))+eps, FUN = "-"))
+  #
+  ##merge annotations and relabel
+  #mynonzeros <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), mynonzeros0[seqnames == chr][, c("bin", myid), with=F])
+  #names(mynonzeros)[4] <- "fracNonZero"
+  #mynonzeros$method = "Sample Non Zeros"
+  #mynonzeros$pos <- factor(mynonzeros$pos)
+  #
+  ##Get control version of mynonzeros object
+  #tmp <- mynonzeros0[seqnames == chr, controlSampleIDs, with=F]
+  #tmp <- melt(t(tmp))[,2:3]
+  #colnames(tmp) <- c("bin", "value")
+  #tmp2 <- merge(unique(tt1[method == "MLreg", c("bin", "pos", "proportion")]), tmp)
   
   #make chrX values to NA
   if(chr == "chrX") {

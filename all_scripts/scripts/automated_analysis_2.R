@@ -109,12 +109,12 @@ visual.data$MN_info <- rep(MN_info, each=length(unique(adt.bychr$seqnames))-leng
 ### Visualize Data ###
 ######################
 
-#Plot the boxplots and strip plots
-boxplot.visual <- ggplot() + 
-  geom_jitter(data = visual.data, mapping = aes(x = 4, y = TPM, color = chr), width = 0.3) +
-  geom_boxplot(data = boxplots.vals, mapping = aes(x = Group, y = TPM, color = color), outlier.alpha = 0)  +
-  ylim(c(.25,1.75)) + scale_x_discrete(limits = c("1", "2", "3", "4"), labels=c("loss", "control", "gain", "family")) +
-  labs(x = "Group", y = "TPM Ratio", title = sprintf("TPM Ratio Classes | %s ", myfamily))
+##Plot the boxplots and strip plots
+#boxplot.visual <- ggplot() + 
+#  geom_jitter(data = visual.data, mapping = aes(x = 4, y = TPM, color = chr), width = 0.3) +
+#  geom_boxplot(data = boxplots.vals, mapping = aes(x = Group, y = TPM, color = color), outlier.alpha = 0)  +
+#  ylim(c(.25,1.75)) + scale_x_discrete(limits = c("1", "2", "3", "4"), labels=c("loss", "control", "gain", "family")) +
+#  labs(x = "Group", y = "TPM Ratio", title = sprintf("TPM Ratio Classes | %s ", myfamily))
 
 #add pvals to visual data object
 visual.data$pval_loss <- as.numeric(flatten(pval_matrix_loss_bychr[,..names]))
@@ -414,3 +414,89 @@ boxplot.visual <- ggplot() +
   labs(x = "Group", y = "TPM Ratio", title = sprintf("TPM Ratio Distribution"))
 
 ggsave(plot = boxplot.visual, filename = "Global_Classifications.pdf", path = sprintf("%s/visual_results", dirpath), device = "pdf", width = 15, height = 4, dpi = 300, units = "in")
+
+#Highly expressed genes analysis
+
+#rsemtpm <- readRDS(sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", wkpath))
+#library(SingleCellExperiment)
+#library(scater)
+#options(stringsAsFactors = FALSE)
+#
+#reads <- SingleCellExperiment(assays = list(counts = as.matrix(rsemtpm)))
+#
+#plotHighestExprs(reads, exprs_values = "counts")
+
+#Statistics on classified groups
+
+#monosomies <- visual.data.results.all[which(visual.data.results.all$state == "monosomy"),]
+#disomies <- visual.data.results.all[which(visual.data.results.all$state == "disomy"),]
+#trisomies <- visual.data.results.all[which(visual.data.results.all$state == "trisomy"),]
+#intermediate_12 <- visual.data.results.all[which(visual.data.results.all$state == "intermediate_12"),]
+#intermediate_32 <- visual.data.results.all[which(visual.data.results.all$state == "intermediate_32"),]
+#low <- visual.data.results.all[which(visual.data.results.all$state == "low"),]
+#high <- visual.data.results.all[which(visual.data.results.all$state == "high"),]
+#
+#median(monosomies$TPM)
+#median(disomies$TPM)
+#median(trisomies$TPM)
+#median(intermediate_12$TPM)
+#median(intermediate_32$TPM)
+#median(low$TPM)
+#median(high$TPM)
+#
+#sd(monosomies$TPM)
+#sd(disomies$TPM)
+#sd(trisomies$TPM)
+#sd(intermediate_12$TPM)
+#sd(intermediate_32$TPM)
+#sd(low$TPM)
+#sd(high$TPM)
+#
+#mean(monosomies$TPM)
+#mean(disomies$TPM)
+#mean(trisomies$TPM)
+#mean(intermediate_12$TPM)
+#mean(intermediate_32$TPM)
+#mean(low$TPM)
+#mean(high$TPM)
+#
+#length(monosomies$TPM)
+#length(disomies$TPM)
+#length(trisomies$TPM)
+#length(intermediate_12$TPM)
+#length(intermediate_32$TPM)
+#length(low$TPM)
+#length(high$TPM)
+#
+#range(monosomies$TPM)
+#range(disomies$TPM)
+#range(trisomies$TPM)
+#range(intermediate_12$TPM)
+#range(intermediate_32$TPM)
+#range(low$TPM)
+#range(high$TPM)
+#
+#mono_ref <- boxplots.vals[which(boxplots.vals$Group == "loss"),]
+#ctrl_ref <- boxplots.vals[which(boxplots.vals$Group == "control"),]
+#tri_ref <- boxplots.vals[which(boxplots.vals$Group == "gain"),]
+#
+#median(mono_ref$TPM)
+#median(ctrl_ref$TPM)
+#median(tri_ref$TPM)
+#
+#sd(mono_ref$TPM)
+#sd(ctrl_ref$TPM)
+#sd(tri_ref$TPM)
+#
+#mean(mono_ref$TPM)
+#mean(ctrl_ref$TPM)
+#mean(tri_ref$TPM)
+#
+#length(mono_ref$TPM)
+#length(ctrl_ref$TPM)
+#length(tri_ref$TPM)
+#
+#range(mono_ref$TPM)
+#range(ctrl_ref$TPM)
+#range(tri_ref$TPM)
+

@@ -35,7 +35,7 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("210503_9A", "2
     B <- data.table(B)
     setnames(B, old = id, new = "fraction")
     
-    tmp <- data.frame(bin_id = grep(chr, dfs$bin_id, value = T), amp = dfs[grep(chr, dfs$bin_id), id])
+    tmp <- data.frame(bin_id = grep(chr, dfs$bin_id, value = T), amp = unlist(dfs[grep(chr, dfs$bin_id), ..id])) #the issue is dfs is now  data.table
     
     tmp$amp[grep("chrX", tmp$bin_id)] <- tmp$amp[grep("chrX", tmp$bin_id)]*0.5 #manually divide X by 2
     tmp$bias <- tmp$amp

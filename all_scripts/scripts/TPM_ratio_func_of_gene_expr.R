@@ -73,8 +73,8 @@ CumulativeTPM_and_ratioTPM_plots <- function(destDir = "/pellmanlab/stam_niko/re
   saveRDS(p1, file = sprintf("%s/%s.%s.%s.TPMratiobyExpr.rds", destDir, myfamily_file, myid, chr))
   saveRDS(p2, file = sprintf("%s/%s.%s.%s.CumulativeTPM.rds", destDir, myfamily_file, myid, chr))
   #save raw visuals as pdf for print use
-  ggsave(plot = p1, filename = sprintf("%s/%s.%s.%s.TPMratiobyExpr.rds", destDir, myfamily_file, myid, chr), path = destDir, device = "pdf")
-  ggsave(plot = p2, filename = sprintf("%s/%s.%s.%s.CumulativeTPM.rds", destDir, myfamily_file, myid, chr), path = destDir, device = "pdf")
+  ggsave(plot = p1, filename = sprintf("%s/%s.%s.%s.TPMratiobyExpr.pdf", destDir, myfamily_file, myid, chr), path = destDir, device = "pdf")
+  ggsave(plot = p2, filename = sprintf("%s/%s.%s.%s.CumulativeTPM.pdf", destDir, myfamily_file, myid, chr), path = destDir, device = "pdf")
 
   return( data.table(expr_file = sprintf("%s/%s.%s.%s.TPMratiobyExpr.rds", destDir, myfamily_file, myid, chr), cum_file = sprintf("%s/%s.%s.%s.CumulativeTPM.rds", destDir, myfamily_file, myid, chr)) )
 

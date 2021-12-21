@@ -30,14 +30,12 @@ source(sprintf("%s/plots/ClusterMap_byfamily.R", scriptsdir))
 source(sprintf("%s/plots/class_prob_to_cn_level.R", scriptsdir))
 source(sprintf("%s/plots/plot_cn_prediction_probabilities.R", scriptsdir))
 source(sprintf("%s/plots/calc_and_plot_intermediate_pvalue.R", scriptsdir))
-source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots2.R", scriptsdir))
-source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots3.R", scriptsdir))
 source(sprintf("%s/plots/plot_raw_data_and_prediction_boxplots4.R", scriptsdir))
 source(sprintf("%s/plots/plot_barplots_of_AllelicAndExpBiasPerSamples2.R", scriptsdir))
 source(sprintf('%s/plots/plot_cn_and_intermediate_prediction_latest_model_intermediate_bars.R', scriptsdir))
 source(sprintf('%s/plots/plot_pvals_and_tpm_distributions.R', scriptsdir))
 source(sprintf('%s/plots/plot_pvals_and_tpm_distributions_bychr.R', scriptsdir))
-source(sprintf("%s/plots/works_in_progress/TPM_ratio_func_of_gene_expr.R", scriptsdir))
+source(sprintf("%s/plots/TPM_ratio_func_of_gene_expr.R", scriptsdir))
 
 ####################
 ### loading data ###
@@ -77,7 +75,8 @@ rsemtpm <- readRDS(sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", 
 
 #Read in QC object and establish high QC criteria
 all_QC <- readRDS(file = sprintf("%s/aggregated_results/all_QC.rds", dirpath))
-high_qc_ids <- as.character(all_QC[which(all_QC$th5 >= quantile(all_QC$th5, c(.10))),]$id)
+threshold <- quantile(all_QC$th5, c(.10))
+high_qc_ids <- as.character(all_QC[which(all_QC$th5 >= 4000),]$id)
 
 #Variant matrix in the coding and UTR regions
 coding <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))
@@ -103,7 +102,7 @@ dim(col_anno)
 col_anno[Pairs == "NA", Pairs := NA]
 
 #fraction of nonzero tpm (binned) object
-nonzeros.zs <- readRDS(sprintf("%s/aggregated_results/nonzeros.zs.bin50.rds", dirpath))
+#nonzeros.zs <- readRDS(sprintf("%s/aggregated_results/nonzeros.zs.bin50.rds", dirpath))
 
 #Gene and cell annotaions
 geneRanges <- readRDS(sprintf("%s/geneRanges.rds", datadir))
@@ -118,69 +117,20 @@ centromeres <- readRDS( sprintf("%s/centromeres.rds", datadir) )
 #controlSampleIDs2 <- controlSampleIDs2[-which(controlSampleIDs2 %in% "170425_A3")]
 
 ##########################Data for OLR Plots###########################
-message("Loading more data...")
-
-#Main ML Predictions object
-ourpreds <- readRDS(file = sprintf("%s/ML_data/preds.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES))
-predicted_samples <- names(ourpreds$preds)
-samples_to_use <- c(intersect(predicted_samples, samples_to_use))
-
-#Auxiliary ML Data Objects
-interstat.chr <- data.table(readRDS(file = sprintf("%s/ML_data/interstat.chrlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
-interstat.arm <- data.table(readRDS(file = sprintf("%s/ML_data/interstat.armlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
-fracstat <- data.table(readRDS(file = sprintf("%s/ML_data/fracstat.chrlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
+#message("Loading more data...")
+#
+##Main ML Predictions object
+#ourpreds <- readRDS(file = sprintf("%s/ML_data/preds.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES))
+#predicted_samples <- names(ourpreds$preds)
+#samples_to_use <- c(intersect(predicted_samples, samples_to_use))
+#
+##Auxiliary ML Data Objects
+#interstat.chr <- data.table(readRDS(file = sprintf("%s/ML_data/interstat.chrlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
+#interstat.arm <- data.table(readRDS(file = sprintf("%s/ML_data/interstat.armlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
+#fracstat <- data.table(readRDS(file = sprintf("%s/ML_data/fracstat.chrlevel.probs_olr_model.WIN%d.rds", dirpath, NUM_OF_FEATURES)))
 
 ##########################Data for Barcharts###########################
 message("Loading more data...")
-
-#SSM, MA, and Allelic CN information
-Ms.chr <- readRDS(file = sprintf("%s/CN_data/CN_predictions.bychr.rds", dirpath))
-
-#total expression by chr binned OLR
-OLR_preds_wchr <- cbind(ourpreds[["cns"]][,c(2)], ourpreds[["cns"]][,-c(1:4)])
-OLR_preds_bychr <- OLR_preds_wchr %>% 
-  group_by(seqnames) %>%
-  summarise_all(mean, na.rm = TRUE)
-chr.TE <- setnames(OLR_preds_bychr, old = "seqnames", new = "bin_id")
-chr.TE <- as.data.frame(chr.TE, stringsAsFactors = FALSE)
-chr.TE$bin_id <- as.character(chr.TE$bin_id)
-
-#Change the loss category to reflect CN = 0 as well as CN = 1
-rawA <- copy(Ms.chr$raw.A)
-setnames(rawA, old = "seqnames", new = "bin_id")
-rawB <- copy(Ms.chr$raw.B)
-setnames(rawB, old = "seqnames", new = "bin_id")
-indices <- data.frame(stringsAsFactors = FALSE)
-for (i in 1:ncol(rawA[,-c(1)])) {
-  for (j in 1:nrow(rawA[,-c(1)])) {
-    if (!is.nan(unlist(rawA[,-c(1)][j,..i]))) {
-      if (rawA[,-c(1)][j,..i] < .05 && rawB[,-c(1)][j,..i] < .05) {
-        indices <- rbind(indices, data.frame(sample = colnames(rawA[,-c(1)])[i] , chr = rawA$bin_id[j], stringsAsFactors = FALSE))
-      }
-    }
-  }
-}
-indices$chr <- as.character(indices$chr)
-
-for (i in 1:nrow(indices)) {
-  value <- as.numeric(chr.TE[which(chr.TE$bin_id == indices$chr[i]), indices$sample[i]])
-  if (value < 1.10) {
-    chr.TE[[indices$sample[i]]] = replace(chr.TE[[indices$sample[i]]], which(chr.TE$bin_id == indices$chr[i]), .1)
-  }
-}
-
-#Allele expression (option B (raw aggs by gene)):
-allele_frac_mat.bychr <- readRDS(file=sprintf("%s/aggregated_results/allele_frac_mat.bychr.rds", dirpath))
-chr.Af <- copy(allele_frac_mat.bychr$A)
-setnames(chr.Af, old = "seqnames", new = "bin_id")
-chr.Af$bin_id <- as.character(paste0("chr", chr.Af$bin_id))
-chr.Af$bin_id[chr.Af$bin_id == "chr23"] <- "chrX" #Change chr23 to chrX
-chr.Bf <- copy(allele_frac_mat.bychr$B)
-setnames(chr.Bf, old = "seqnames", new = "bin_id")
-chr.Bf$bin_id <- as.character(paste0("chr", chr.Bf$bin_id))
-chr.Bf$bin_id[chr.Bf$bin_id == "chr23"] <- "chrX" #Change chr23 to chrX
-IDs <- intersect(colnames(chr.TE)[-1], colnames(chr.Af[-1]))
-samples_to_use <- c(intersect(samples_to_use, IDs))
 
 allele_frac.bychr <- readRDS(file=sprintf("%s/aggregated_results/allele_frac.bychr.rds", dirpath))
 chr.Af2 <- copy(allele_frac.bychr$A)
@@ -204,17 +154,17 @@ source(sprintf("%s/scripts/calculating_control_pvals_bychr_v3.R", scriptsdir))
 source(sprintf("%s/scripts/calculating_pvals_byarm_v2.R", scriptsdir))
 
 #Add arm level annotations to ourpreds
-preds <- data.table(ourpreds[["cns"]])
-ganno2 <- ganno[,c(1,6:9)]
-preds2 <- setkey(preds, seqnames, start, end, id)
-ganno3 <- setkey(ganno2, seqnames, start, end, id)
-preds3 <- merge(ganno3, preds2)
-OLR_preds_warm <- cbind(preds3[,c("arm")], preds3[,-c(1:5)])
-
-#total expression from OLR binned by arm
-OLR_preds_byarm <- OLR_preds_warm %>% 
-  group_by(arm) %>%
-  summarise_all(mean, na.rm = TRUE)
+#preds <- data.table(ourpreds[["cns"]])
+#ganno2 <- ganno[,c(1,6:9)]
+#preds2 <- setkey(preds, seqnames, start, end, id)
+#ganno3 <- setkey(ganno2, seqnames, start, end, id)
+#preds3 <- merge(ganno3, preds2)
+#OLR_preds_warm <- cbind(preds3[,c("arm")], preds3[,-c(1:5)])
+#
+##total expression from OLR binned by arm
+#OLR_preds_byarm <- OLR_preds_warm %>% 
+#  group_by(arm) %>%
+#  summarise_all(mean, na.rm = TRUE)
 
 #reorder OLR preds columns like pval matrix
 #OLR_preds_byarm <- OLR_preds_byarm[,colnames(pval_matrix_control_byarm)]
@@ -223,14 +173,14 @@ OLR_preds_byarm <- OLR_preds_warm %>%
 ########################Data for Cluster Plot##########################
 
 #TPM object normalized with chr bins
-adt.bychr <- readRDS(file=sprintf("%s/aggregated_results/adt.bychr.rds", dirpath))
+adt_bychr <- readRDS(file=sprintf("%s/aggregated_results/adt.bychr.rds", dirpath))
 #absolute difference between allele cnts per chr
 abs_allele_diff_mat.bychr <- readRDS(file=sprintf("%s/aggregated_results/abs_allele_diff_mat.bychr.rds", dirpath))
 #total SNP counts over both alleles taken after separate allele normalization. ~same as var_mat.bychr. 
 var_mat_sep.bychr <- readRDS(file=sprintf("%s/aggregated_results/var_mat_sep.bychr.rds", dirpath))
 
-adt_bychr2 <- cbind(adt_bychr[,1], adt_bychr[,-1]*2)
-colnames(adt_bychr2) <- colnames(chr.TE)
+adt_bychr2 <- cbind( bin_id = paste0("chr", unlist(adt_bychr[,1])), adt_bychr[,-1]*2)
+adt_bychr2$bin_id[adt_bychr2$bin_id=="chr23"] <- "chrX"
 
 #add in quadrature and scale by sqrt(2) so that the point (1,1) is 1 in aggregated dim
 matrix_adt.bychr <- as.matrix(adt.bychr[,-c(1)]); matrix_var.bychr <- as.matrix(var_mat_sep.bychr[,-c(1)]);
@@ -277,15 +227,15 @@ require(doParallel)
 registerDoParallel(20)
 
 #Pull information for a given sample from ML prediction object
-get_flat_format_tbl <- function(mysampid) {
-  probs <- data.table(sample_id = mysampid, cbind(ourpreds$rowdata,  ourpreds$preds[[mysampid]]))
-  setkeyv(probs, c("seqnames", "start", "end"))
-  setkeyv(arms, c("seqnames", "start", "end"))
-  tmp <- foverlaps(probs, arms)
-  tmp2 <- tmp[, c("sample_id", "seqnames", "arm", "i.start", "i.end", "id", "1", "2", "3"), with=F]
-  setnames(x = tmp2, old = c("i.start", "i.end", "1", "2", "3"), new = c("start", "end", "c1", "c2", "c3"))
-  return(tmp2)
-}
+#get_flat_format_tbl <- function(mysampid) {
+#  probs <- data.table(sample_id = mysampid, cbind(ourpreds$rowdata,  ourpreds$preds[[mysampid]]))
+#  setkeyv(probs, c("seqnames", "start", "end"))
+#  setkeyv(arms, c("seqnames", "start", "end"))
+#  tmp <- foverlaps(probs, arms)
+#  tmp2 <- tmp[, c("sample_id", "seqnames", "arm", "i.start", "i.end", "id", "1", "2", "3"), with=F]
+#  setnames(x = tmp2, old = c("i.start", "i.end", "1", "2", "3"), new = c("start", "end", "c1", "c2", "c3"))
+#  return(tmp2)
+#}
 
 
 #Variables
@@ -304,7 +254,7 @@ exclude_chrs <- c()
 #make raw plot pdfs for every sample
 foreach(i = c(1:length(samples_to_visualize))) %dopar% {
   myid <- samples_to_visualize[i]
-  probs <- get_flat_format_tbl(myid)
+  #probs <- get_flat_format_tbl(myid)
   myfamily_file <- anno[which(anno$WTA.plate == myid),]$Family_IDs
   #if(myfamily == "") {myfamily <- "no_family"}
   #myfamily_file1 = str_remove(myfamily, fixed("(")); myfamily_file = str_remove(myfamily_file1, fixed(")"))
@@ -316,7 +266,7 @@ foreach(i = c(1:length(samples_to_visualize))) %dopar% {
     message(chr)
     #Plot raw data visuals function
     plot_raw_data_and_prediction_boxplots4(myfamily_file = myfamily_file, myid_file = myid_file, myid = myid, chr = chr, adt = adt, destDir = destDir,
-                                           nonzeros.zs = nonzeros.zs, coding = coding, th=configs$minNumOfSamplesToDetect,
+                                           coding = coding, th=configs$minNumOfSamplesToDetect, 
                                            preds = adt_fake, controlSampleIDs = controlSampleIDs)
     CumulativeTPM_and_ratioTPM_plots(adt = adt_nolog, geneRanges = geneRanges, controlSampleIDs = controlSampleIDs, 
                                      myfamily_file = myfamily_file, myid_file = myid_file, myid = myid, chr = chr, destDir = destDir, binsize = 10)
@@ -393,10 +343,9 @@ foreach(i = c(1:length(names(families)))) %dopar% {
       files <- data.table()
       files2 <- data.table()
       for(myid in myids[myids %in% samples_to_visualize]) {
-        probs <- get_flat_format_tbl(myid)
         #Plot raw data visuals function
         files <- rbind(files, plot_raw_data_and_prediction_boxplots4(myfamily_file = myfamily_file, myid = myid, chr = chr, adt = adt, destDir = destDir,
-                                                                     nonzeros.zs = nonzeros.zs, coding = coding, th=configs$minNumOfSamplesToDetect,
+                                                                     coding = coding, th=configs$minNumOfSamplesToDetect,
                                                                      preds = adt_fake, controlSampleIDs = controlSampleIDs, save.rds = T))
         files2 <- rbind(files2, CumulativeTPM_and_ratioTPM_plots(adt = adt_nolog, geneRanges = geneRanges, controlSampleIDs = controlSampleIDs, save.rds = T,
                                                                  myfamily_file = myfamily_file, myid = myid, chr = chr, destDir = destDir, binsize = 10))
@@ -420,3 +369,57 @@ foreach(i = c(1:length(names(families)))) %dopar% {
 
 #Sanity check that the code ran to completion
 print("Done with making visuals")
+
+
+########################
+
+
+df <- cbind(rep("Intact", 8), rep("No Defect", 8))
+df <- rbind(df, cbind(rep("Early NE Defect", 10), rep("No Defect", 10)))
+df <- rbind(df, cbind(rep("S/G2", 10), rep("No Defect", 10)))
+df <- rbind(df, cbind(rep("Early NE Defect", 4), rep("Defect", 4)))
+df <- rbind(df, cbind(rep("S/G2", 8), rep("Defect", 8)))
+colnames(df) <- c("rupt_time", "state")
+df <- df[,c("state", "rupt_time")]
+df <- data.table(df)
+
+df2 <- cbind(rep("Intact", 4), rep("No Defect", 4))
+df2 <- rbind(df2, cbind(rep("Early NE Defect", 1), rep("No Defect", 1)))
+df2 <- rbind(df2, cbind(rep("Intact", 8), rep("Defect", 8)))
+df2 <- rbind(df2, cbind(rep("Early NE Defect", 8), rep("Defect", 8)))
+df2 <- rbind(df2, cbind(rep("S/G2", 6), rep("Defect", 6)))
+colnames(df2) <- c("rupt_time", "state")
+df2 <- df2[,c("state", "rupt_time")]
+df2 <- data.table(df2)
+
+
+
+p <- ggplot(df, aes(x = rupt_time, fill = state )) + 
+  geom_bar() + 
+  scale_fill_manual(values = c("black", "grey")) +
+  #scale_y_discrete(breaks = c(0,5,10,15,20)) +
+  scale_y_continuous(breaks = c(0,4,8,12,16,20), labels = c("0","4","8","12","16","20"), limits = c(0,20)) + 
+  scale_x_discrete(limits = c("Intact", "Early NE Defect", "S/G2")) +
+  coord_cartesian(clip="off") +
+  geom_rangeframe(x=0, y=seq(0, 20, along.with = df$state)) + # 
+  theme_tufte() +
+  theme(aspect.ratio = 2, text=element_text(size=18), axis.ticks.x = element_blank(),
+        axis.text = element_text(color="black"), axis.title = element_blank()) 
+
+
+p1 <- ggplot(df2, aes(x = rupt_time, fill = state )) + 
+  geom_bar() + 
+  scale_fill_manual(values = c("black", "grey")) +
+  #scale_y_discrete(breaks = c(0,5,10,15,20)) +
+  scale_y_continuous(breaks = c(0,4,8,12), labels = c("0","4","8","12"), limits = c(0,12)) + 
+  scale_x_discrete(limits = c("Intact", "Early NE Defect", "S/G2")) +
+  coord_cartesian(clip="off") +
+  geom_rangeframe(x=0, y=seq(0, 12, along.with = df2$state)) + # 
+  theme_tufte() +
+  theme(aspect.ratio = 2, text=element_text(size=18), axis.ticks.x = element_blank(),
+        axis.text = element_text(color="black"), axis.title = element_blank()) 
+
+ggsave(plot = p, filename = sprintf("Gen2_barchart.pdf"), path = destDir, device = "pdf", width = 6, height = 12, dpi = 300, units = "in")
+ggsave(plot = p1, filename = sprintf("Gen1_barchart.pdf"), path = destDir, device = "pdf", width = 6, height = 12, dpi = 300, units = "in")
+
+

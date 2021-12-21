@@ -251,7 +251,7 @@ generate_adt_adt0_adt.na_and_nonzeros_data <- function(th = 4, dirpath = "/pellm
   #adt.na:
   #-------
   mlinput2.na <- with(configs, fromRawTPMtoExprsRatio(rsemtpm = rsemtpm, geneRanges = geneRanges, 
-                                                      controlSampleIDs = controlSampleIDs2, max_pos_col = 6, plusOne = 1, 
+                                                      controlSampleIDs = controlSampleIDs, max_pos_col = 6, plusOne = 1, 
                                                       maxExp = maxExp, quantileOfExp = quantileOfExp, 
                                                       minDetectionLevel = minDetectionLevel,
                                                       zerosAsNA = T, minNumOfSamplesToDetect = minNumOfSamplesToDetect,  
@@ -283,7 +283,7 @@ generate_adt_adt0_adt.na_and_nonzeros_data <- function(th = 4, dirpath = "/pellm
   #adt:
   #----
   mlinput <- with(configs, fromRawTPMtoExprsRatio(rsemtpm = rsemtpm, geneRanges = geneRanges, 
-                                                  controlSampleIDs = controlSampleIDs2, max_pos_col = 6, plusOne = 1, 
+                                                  controlSampleIDs = controlSampleIDs, max_pos_col = 6, plusOne = 1, 
                                                   maxExp = maxExp, quantileOfExp = quantileOfExp, 
                                                   minDetectionLevel = minDetectionLevel,
                                                   zerosAsNA = F, minNumOfSamplesToDetect = minNumOfSamplesToDetect, #minNumOfSamplesToDetect, 

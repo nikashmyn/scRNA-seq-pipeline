@@ -26,5 +26,5 @@ hand_samples <- data.table(ID = hand_sample_ids, CN = hand_sample_CNs, chr = han
 hand_samples <- hand_samples[which(!paste0("chr", as.character(hand_samples$chr)) %in% configs$chr_to_excl),]
 
 saveRDS(hand_samples, sprintf("%s/aggregated_results/grouped_control_aneuploidies.rds", dirpath))
-
+hand_samples <- readRDS(sprintf("%s/aggregated_results/grouped_control_aneuploidies.rds", dirpath))
 
