@@ -34,25 +34,6 @@ seg_table_diploid_families_red <- data.table(read.csv(file = sprintf("%s/aggrega
 #all families
 all_family_events <- data.table(read.csv(file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath)))
 
-#look for F206 in automated analysis. it got lost. 
-
-##############################
-### Read in raw TPM values ###
-##############################
-
-raw_tpm <- data.table(read_csv(file = sprintf("%s/aggregated_results/raw_tpm.csv", dirpath)))
-#Change the IDs to the new Ids here. 
-
-################################
-### Read in raw SNP coverage ###
-################################
-
-raw_var <- readRDS(sprintf("%s/aggregated_results/ASE.coding.rds", dirpath))[c("features", "A", "B")]
-write.csv(data.table(raw_var$features), sprintf("%s/aggregated_results/raw_var_features.csv", dirpath), row.names=FALSE)
-write.csv(data.table(raw_var$A), sprintf("%s/aggregated_results/raw_var_A.csv", dirpath), row.names=FALSE)
-write.csv(data.table(raw_var$B), sprintf("%s/aggregated_results/raw_var_B.csv", dirpath), row.names=FALSE)
-#Change the IDs to the new Ids here. 
-
 #########################################################
 ### Create anno lists for included and excluded cells ###
 #########################################################

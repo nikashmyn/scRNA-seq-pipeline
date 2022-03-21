@@ -9,15 +9,15 @@
 #some intermediate values still in visuals results
 #double intermediate_32 or intermediate_21 in gen1 should be removed. 
 
-args <- commandArgs(trailingOnly = TRUE)
-#args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025a",  "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ")
-print(args)
-scriptsdir <- args[1]
-wkpath <- dirpath <- args[2]
-datadir <- args[3]
-experiments <- args[4:length(args)]
-mk_agg_dir <- sprintf("mkdir -p %s/aggregated_results", wkpath)
-system(mk_agg_dir)
+#args <- commandArgs(trailingOnly = TRUE)
+##args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025a",  "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ")
+#print(args)
+#scriptsdir <- args[1]
+#wkpath <- dirpath <- args[2]
+#datadir <- args[3]
+#experiments <- args[4:length(args)]
+#mk_agg_dir <- sprintf("mkdir -p %s/aggregated_results", wkpath)
+#system(mk_agg_dir)
 
 ####################
 ### Read-in data ###
@@ -26,18 +26,26 @@ system(mk_agg_dir)
 library(reshape)
 
 #Read in data
-golden_samples <- readRDS(file = sprintf("%s/aggregated_results/golden_set_tpms_bychr.rds", dirpath))
+ref_TPM <- readRDS(file = sprintf("%s/aggregated_results/ref_TPM.rds", dirpath))
 
 #Read in grouped sample information
 hand_samples <- readRDS(sprintf("%s/aggregated_results/grouped_control_aneuploidies.rds", dirpath))
 
 #read in normed TPM by chr
-adt.bychr <- readRDS(file=sprintf("%s/aggregated_results/adt.bychr.rds", dirpath))
+TPM_bychr <- readRDS(file=sprintf("%s/aggregated_results/TPM.inv_var.bychr.rds", dirpath))
 
-#Allele fraction by chr
-allele_frac.bychr <- readRDS(file=sprintf("%s/aggregated_results/allele_frac.bychr.rds", dirpath))
-VAR_A <- copy(allele_frac.bychr$A)
-VAR_B <- copy(allele_frac.bychr$B)
+#new ASE
+ASE_bychr <- readRDS(file=sprintf("%s/aggregated_results/ASE.inv_var.bychr.rds", dirpath))
+VAR_A <- copy(ASE_bychr$AF)
+VAR_B <- cbind(ASE_bychr$AF[,c(1)], 1-ASE_bychr$AF[,-c(1)])
+
+#new AS-TPM
+AS_TPM_bychr <- readRDS(file=sprintf("%s/aggregated_results/AS-TPM.inv_var.bychr.rds", dirpath))
+
+##Allele fraction by chr
+#allele_frac.bychr <- readRDS(file=sprintf("%s/aggregated_results/allele_frac.bychr.rds", dirpath))
+#VAR_A <- copy(allele_frac.bychr$A)
+#VAR_B <- copy(allele_frac.bychr$B)
 
 #read in pvalues from control dist bychr
 pval_matrix_control_bychr <- readRDS(file = sprintf("%s/aggregated_results/pval_matrix_control_bychr.rds", dirpath))
@@ -51,15 +59,12 @@ anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", 
 ### Boxplot Data ###
 ####################
 
-#main data to be plotted byarm
-boxplots.vals <- cbind(golden_samples$loss_bychr$tpm, rep("loss", length(golden_samples$loss_bychr$tpm))); 
-boxplots.vals <- rbind(boxplots.vals, cbind(golden_samples$control_bychr$tpm, rep("control", length(golden_samples$control_bychr$tpm))))
-boxplots.vals <- data.table(rbind(boxplots.vals, cbind(golden_samples$gain_bychr$tpm, rep("gain", length(golden_samples$gain_bychr$tpm)))))
-colnames(boxplots.vals) <- c("TPM", "Group")
+#main data to be plotted 
+boxplots.vals <- cbind(ref_TPM[,c("vals", "CN")], color = ref_TPM$CN)
+setnames(boxplots.vals, old = c("vals", "CN"), new = c("TPM", "Group"))
+boxplots.vals$Group[boxplots.vals$Group == 1] <- "loss"; boxplots.vals$Group[boxplots.vals$Group == 2] <- "control"; boxplots.vals$Group[boxplots.vals$Group == 3] <- "gain";
 boxplots.vals$TPM <- as.numeric(boxplots.vals$TPM)
 boxplots.vals$Group <- as.factor(boxplots.vals$Group)
-dist_colors <- c(rep(1, length(golden_samples$loss_bychr$tpm)), rep(10, length(golden_samples$control_bychr$tpm)), rep(20, length(golden_samples$gain_bychr$tpm)))
-boxplots.vals$color <- c(dist_colors)
 
 #######################
 ### Strip Plot Data ###
@@ -86,24 +91,29 @@ rupt_time <- anno_gen_1_2$MN_rupt_time_simple
 event <- anno_gen_1_2$event2
 MN_info <- anno_gen_1_2$MN.Daughter
 fam_vals <- unlist(rle(families)$values)
-fam_reps <- as.numeric(rle(families)$lengths)*(length(unique(adt.bychr$seqnames))-length(exclude_chrs))
+fam_reps <- as.numeric(rle(families)$lengths)*(length(unique(TPM_bychr$chr))-length(exclude_chrs))
 fam_ids_vals <- unlist(rle(family_ids)$values)
-fam_ids_reps <- as.numeric(rle(family_ids)$lengths)*(length(unique(adt.bychr$seqnames))-length(exclude_chrs))
+fam_ids_reps <- as.numeric(rle(family_ids)$lengths)*(length(unique(TPM_bychr$chr))-length(exclude_chrs))
+
+chr_num <- str_remove(unique(TPM_bychr$chr), pattern = "chr")
+chr_num[chr_num == "X"] <- 23
+chr_num <- as.numeric(chr_num)
+chr_num <- unique(TPM_bychr$chr)
 
 #Prepare Visual Objects
-visual.data <- data.table(TPM = as.numeric(flatten(adt.bychr[,..names])))
+visual.data <- data.table(TPM = as.numeric(flatten(TPM_bychr[,..names])))
 visual.data$VAR_A <- as.numeric(flatten(VAR_A[,..names]))
 visual.data$VAR_B <- as.numeric(flatten(VAR_B[,..names]))
-visual.data$chr <- as.numeric(rep(unique(adt.bychr$seqnames), length = length(visual.data$TPM)))
-visual.data$cell <- rep(names, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
-visual.data$ids <- rep(ids, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
+visual.data$chr <- rep(unique(chr_num), length = length(visual.data$TPM))
+visual.data$cell <- rep(names, each=length(unique(chr_num))-length(exclude_chrs))
+visual.data$ids <- rep(ids, each=length(unique(chr_num))-length(exclude_chrs))
 visual.data$family <- rep(fam_vals, fam_reps)
 visual.data$family_ids <- rep(fam_ids_vals, fam_ids_reps)
-visual.data$relationship <- rep(relationship, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
-visual.data$generation <- rep(gen, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
-visual.data$rupt_time <- rep(rupt_time, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
-visual.data$event <- rep(event, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
-visual.data$MN_info <- rep(MN_info, each=length(unique(adt.bychr$seqnames))-length(exclude_chrs))
+visual.data$relationship <- rep(relationship, each=length(unique(chr_num))-length(exclude_chrs))
+visual.data$generation <- rep(gen, each=length(unique(chr_num))-length(exclude_chrs))
+visual.data$rupt_time <- rep(rupt_time, each=length(unique(chr_num))-length(exclude_chrs))
+visual.data$event <- rep(event, each=length(unique(chr_num))-length(exclude_chrs))
+visual.data$MN_info <- rep(MN_info, each=length(unique(chr_num))-length(exclude_chrs))
 
 ######################
 ### Visualize Data ###
@@ -114,7 +124,7 @@ visual.data$MN_info <- rep(MN_info, each=length(unique(adt.bychr$seqnames))-leng
 #  geom_jitter(data = visual.data, mapping = aes(x = 4, y = TPM, color = chr), width = 0.3) +
 #  geom_boxplot(data = boxplots.vals, mapping = aes(x = Group, y = TPM, color = color), outlier.alpha = 0)  +
 #  ylim(c(.25,1.75)) + scale_x_discrete(limits = c("1", "2", "3", "4"), labels=c("loss", "control", "gain", "family")) +
-#  labs(x = "Group", y = "TPM Ratio", title = sprintf("TPM Ratio Classes | %s ", myfamily))
+#  labs(x = "Group", y = "TPM Ratio", title = sprintf("TPM Ratio Classes"))
 
 #add pvals to visual data object
 visual.data$pval_loss <- as.numeric(flatten(pval_matrix_loss_bychr[,..names]))
@@ -165,9 +175,9 @@ visual.data2$MN_Cell <- as.character(rep(NA, nrow(visual.data2)))
 visual.data2$MN_Sister <- as.character(rep(NA, nrow(visual.data2)))
 for(i in 1:length(MN_fam_rle$values)) {
   cur_fam <- visual.data2[which(visual.data2$family_ids == MN_fam_rle$values[i]),]
-  if(cur_fam$MN_info == "A") {alt_info <- "B"}
-  if(cur_fam$MN_info == "B") {alt_info <- "A"}
-  if(cur_fam$MN_info == "AB") {alt_info <- "AB"}
+  if(cur_fam$MN_info[1] == "A") {alt_info <- "B"}
+  if(cur_fam$MN_info[1] == "B") {alt_info <- "A"}
+  if(cur_fam$MN_info[1] == "AB") {alt_info <- "AB"}
   id <- unique(cur_fam$ids[which(cur_fam$relationship == cur_fam$MN_info)])
   id_alt <- unique(cur_fam$ids[which(cur_fam$relationship == alt_info)])
   if(length(id) != 0) {visual.data2$MN_Cell[which(visual.data2$family_ids == MN_fam_rle$values[i])] <- paste(unique(cur_fam$MN_info), ":", id)}
@@ -201,7 +211,7 @@ for (fam in unique(seg_table_gen1$family)) {
   for (i in 1:nrow(cur_fam)) {
     if ( length(setdiff(cur_fam[i,cols][!is.na(cur_fam[i,cols])], c("disomy"))) > 0 ) {cntr <- cntr + 1}
   }
-  if (cntr == 0) {rows_to_keep <- append(rows_to_keep, which(seg_table_gen2$family == fam))}
+  if (cntr == 0) {rows_to_keep <- append(rows_to_keep, which(seg_table_gen1$family == fam))}
 }
 
 #get rid of completely diploid chrs
@@ -337,9 +347,9 @@ seg_table_noMN <- seg_table[rows_to_remove,]
 seg_table_noevent <- seg_table[which(!seg_table$family %in% unique(seg_table_reduced$family)),]
 write_csv(seg_table_noevent, file = sprintf("%s/aggregated_results/cells_noMN_events.csv", dirpath))
 
-################################################
-### Get information for cells with no events ###
-################################################
+#############################################
+### Get information for cells with events ###
+#############################################
 
 #remove cells that are completely diploid
 rows_to_remove3 <- c()
@@ -360,12 +370,143 @@ for (fam in unique(seg_table$family)) {
   if (cntr == 0) {rows_to_keep <- append(rows_to_keep, which(seg_table$family == fam))}
 }
 seg_table_diploid_families <- seg_table[rows_to_keep,]
-seg_table_diploid_families_red <- seg_table_diploid_families[which(seg_table_diploid_families$chr == 1),]
+seg_table_diploid_families_red <- seg_table_diploid_families[which(seg_table_diploid_families$chr == "chr1"),]
 seg_table_diploid_families_red$chr <- "all chrs"
 write_csv(seg_table_diploid_families_red, file = sprintf("%s/aggregated_results/diploid_families.csv", dirpath))
 
-all_family_events <- rbind(seg_table_allevents, seg_table_diploid_families_red)
-write_csv(all_family_events, file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath))
+all_family_events <- data.table(rbind(seg_table_allevents, seg_table_diploid_families_red))
+
+#add column for MN chromosomes useing MN event dataframe
+dup_mat <- rbind(seg_table_reduced, all_family_events) #combine MN rows with all events
+dup_mat$MN_related <- duplicated(dup_mat) #if rows are duplicated they must be a MN event
+all_family_events_2 <- data.table(dup_mat[-c(1:nrow(seg_table_reduced)),]) #remove added MN events from df with dups noted
+
+#reorder columns for easier analysis
+ordered_cols <- c("generation","family","family_ids","MN_Cell","MN_Sister","MN_info","event","rupt_time","chr","A_TPM","A","A_AlleleA","A_AlleleB","B_TPM","B","B_AlleleA","B_AlleleB","c1_TPM","c1","c1_AlleleA","c1_AlleleB","c2_TPM","c2","c2_AlleleA","c2_AlleleB","MN_related")
+all_family_events_2$chr[all_family_events_2$chr == "all chrs"] <- NA; all_family_events_2$chr[all_family_events_2$chr == "chrX"] <- "chr23";
+all_family_events_2$chr[all_family_events_2$chr == "chr10a"] <- "chr10.1"; all_family_events_2$chr[all_family_events_2$chr == "chr10b"] <- "chr10.2";
+all_family_events_2$chr <- as.numeric(str_replace(string = all_family_events_2$chr, pattern = "chr", replacement = ""))
+all_family_events_2 <- all_family_events_2[,..ordered_cols]
+setkey(all_family_events_2, "generation", "family", "chr")
+
+#############################
+### Annotate MN haplotype ###
+#############################
+
+#if else representation of MN hap reasoning
+hap_column <- c()
+for(i in 1:nrow(all_family_events_2)) {
+  tmp_hap <- c()
+  tmp_event <- all_family_events_2[i,]
+  if(tmp_event$chr %in% c(10.2, 23)){
+    tmp_event_alt <- all_family_events_2[which(all_family_events_2$family == tmp_event$family),]
+    tmp_event_alt_2 <- tmp_event_alt[which(tmp_event_alt$chr == 10.2),]
+    if(nrow(tmp_event_alt_2) > 0){
+      if(tmp_event_alt_2$A %in% c("monosomy", "intermediate_12", "low") | tmp_event$B %in% c("monosomy", "intermediate_12", "low")) {
+        if(tmp_event_alt_2$A %in% c("monosomy", "intermediate_12", "low")){
+          if(tmp_event_alt_2$A_AlleleA < (tmp_event_alt_2$A_AlleleB - .33)){tmp_hap <- append(tmp_hap, "A")}
+          if(tmp_event_alt_2$A_AlleleA > (tmp_event_alt_2$A_AlleleB - .33)){tmp_hap <- append(tmp_hap, "B")}
+        }
+        if(tmp_event_alt_2$B %in% c("monosomy", "intermediate_12", "low")){
+          if(tmp_event_alt_2$B_AlleleA < (tmp_event_alt_2$B_AlleleB - .33)){tmp_hap <- append(tmp_hap, "A")}
+          if(tmp_event_alt_2$B_AlleleA > (tmp_event_alt_2$B_AlleleB - .33)){tmp_hap <- append(tmp_hap, "B")}
+        }
+      }
+      if(tmp_event_alt_2$c1 %in% c("monosomy", "intermediate_12", "low") & tmp_event_alt_2$c2 %in% c("monosomy", "intermediate_12", "low")){
+        if(tmp_event_alt_2$c1_AlleleA < (tmp_event_alt_2$c1_AlleleB - .33)){tmp_hap <- append(tmp_hap, "A")}
+        if(tmp_event_alt_2$c1_AlleleA > (tmp_event_alt_2$c1_AlleleB - .33)){tmp_hap <- append(tmp_hap, "B")}
+      }
+    }
+  } else {
+    if(tmp_event$A %in% c("monosomy", "intermediate_12", "low") | tmp_event$B %in% c("monosomy", "intermediate_12", "low")) {
+      if(tmp_event$A %in% c("monosomy", "intermediate_12", "low")){
+        if(tmp_event$A_AlleleA < tmp_event$A_AlleleB){tmp_hap <- append(tmp_hap, "A")}
+        if(tmp_event$A_AlleleA > tmp_event$A_AlleleB){tmp_hap <- append(tmp_hap, "B")}
+      }
+      if(tmp_event$B %in% c("monosomy", "intermediate_12", "low")){
+        if(tmp_event$B_AlleleA < tmp_event$B_AlleleB){tmp_hap <- append(tmp_hap, "A")}
+        if(tmp_event$B_AlleleA > tmp_event$B_AlleleB){tmp_hap <- append(tmp_hap, "B")}
+      }
+    }
+    if(tmp_event$c1 %in% c("monosomy", "intermediate_12", "low") & tmp_event$c2 %in% c("monosomy", "intermediate_12", "low")){
+      if(tmp_event$c1_AlleleA < tmp_event$c1_AlleleB){tmp_hap <- append(tmp_hap, "A")}
+      if(tmp_event$c1_AlleleA > tmp_event$c1_AlleleB){tmp_hap <- append(tmp_hap, "B")}
+    }
+  }
+  if(length(tmp_hap) > 1) {
+    if(tmp_hap[1] == tmp_hap[2]) {tmp_hap <- tmp_hap[1]} else {print("there was an error"); break;}
+  }
+  if(is.null(tmp_hap)) {hap_column <- append(hap_column, NA)} else {hap_column <- append(hap_column, tmp_hap)}
+}
+
+#add hap annotations to df
+all_family_events_2$MN_hap <- hap_column
+
+#############################################################
+### add annotatation for which chrs are used as reference ###
+#############################################################
+
+fam_column <- c()
+for(i in 1:nrow(hand_samples)){fam_column <- append(fam_column, anno$Pairs[which(anno$WTA.plate == hand_samples$ID[i])])}
+hand_samples$fam <- fam_column
+
+ref_column <- c()
+for(j in 1:nrow(all_family_events_2)){
+  tmp <- all_family_events_2[j,]
+  tmp_mat <- hand_samples[which(hand_samples$fam == tmp$family),]
+  tmp_cntr <- 0
+  if(nrow(tmp_mat) > 0) {
+    for(i in 1:nrow(tmp_mat)){
+      if(tmp_mat$chr[i] == tmp$chr){tmp_cntr <- tmp_cntr + 1}
+    }
+  }
+  if(tmp_cntr > 0){ref_column <- append(ref_column, TRUE)} else {ref_column <- append(ref_column, FALSE)}
+}
+
+all_family_events_2$reference <- ref_column
+
+######################################
+### Estimate CN pattern annotation ###
+######################################
+
+CN_values <- round(2*all_family_events_2[,c("A_TPM", "B_TPM", "c1_TPM", "c2_TPM")])
+CN_pattern_column <- paste(CN_values$A_TPM, CN_values$B_TPM, CN_values$c1_TPM, CN_values$c2_TPM)
+CN_pattern_column_2 <- sub(sub(sub(x = CN_pattern_column, pattern = "NA", replacement = ""), pattern = "NA", replacement = ""), pattern = "NA", replacement = "")
+
+all_family_events_2$CN_pattern <- CN_pattern_column_2
+
+###############################
+### Hap specific CN pattern ###
+###############################
+
+hap_spec_CN_pattern_column <- data.table()
+for(i in 1:nrow(all_family_events_2)){
+  if(!is.na(all_family_events_2$MN_hap[i])){
+    haps <- c(sprintf("A_Allele%s", all_family_events_2$MN_hap[i]), sprintf("B_Allele%s", all_family_events_2$MN_hap[i]), sprintf("c1_Allele%s", all_family_events_2$MN_hap[i]), sprintf("c2_Allele%s", all_family_events_2$MN_hap[i]))
+    hap_spec_CN <- round((2*all_family_events_2[i,c("A_TPM", "B_TPM", "c1_TPM", "c2_TPM")]) * all_family_events_2[i,..haps])
+    hap_spec_CN_pattern_column <- rbind(hap_spec_CN_pattern_column, hap_spec_CN)
+  } else {hap_spec_CN_pattern_column <-  rbind(hap_spec_CN_pattern_column, data.table(NA, NA, NA, NA), use.names=FALSE)}
+}
+hap_spec_CN_pattern <- paste(hap_spec_CN_pattern_column$A_TPM, hap_spec_CN_pattern_column$B_TPM, hap_spec_CN_pattern_column$c1_TPM, hap_spec_CN_pattern_column$c2_TPM)
+hap_spec_CN_pattern_2 <- sub(sub(sub(sub(x = hap_spec_CN_pattern, pattern = "NA", replacement = ""), pattern = "NA", replacement = ""), pattern = "NA", replacement = ""), pattern = "NA", replacement = "")
+
+all_family_events_2$MNhap_CN_pattern <- hap_spec_CN_pattern_2
+
+##########################
+### AS_TPM for MN cell ###
+##########################
+hap_spec_CN_column <- c()
+for(i in 1:nrow(all_family_events_2)){
+  if(!is.na(all_family_events_2$MN_hap[i])){
+    hap <- c(sprintf("A_Allele%s", all_family_events_2$MN_hap[i]))
+    hap_spec_CN_column <- append(hap_spec_CN_column, (2*all_family_events_2[i,c("A_TPM")]) * all_family_events_2[i,..hap])
+  } else {hap_spec_CN_column <- append(hap_spec_CN_column, NA)}
+}
+
+all_family_events_2$MNhap_TPM <- as.character(hap_spec_CN_column)
+
+#save df
+write_csv(all_family_events_2, file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath))
 
 #################################################
 ### get all data for sisters in results table ###

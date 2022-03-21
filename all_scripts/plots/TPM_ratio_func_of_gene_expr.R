@@ -3,7 +3,7 @@ CumulativeTPM_and_ratioTPM_plots <- function(adt, geneRanges, controlSampleIDs,
                                              myfamily_file = "F258", myid_file = "F258.3", myid = "210503_9A", chr = "chr5", 
                                              binsize = 10, save.rds = F) {
   
-  cols <- c("id","seqnames","start","end","width","strand",myid)
+  cols <- c("gene_id","chr","start","end","width","strand",myid)
   
   adt_all <- adt[,..cols]
   
@@ -15,7 +15,8 @@ CumulativeTPM_and_ratioTPM_plots <- function(adt, geneRanges, controlSampleIDs,
   
   adt_control$ratio <- (adt_control[,..myid] / adt_control[,c("control_TPM")])
   
-  adt_control_chr <- adt_control[which(adt_control$seqnames == chr),]
+  rows <- which(adt_control$chr == chr)
+  adt_control_chr <- adt_control[rows,]
   
   #########################################################
   ### Plot TPM ratio as function of avg gene expression ###

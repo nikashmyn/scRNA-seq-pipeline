@@ -38,6 +38,7 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("210503_9A", "2
     tmp <- data.frame(bin_id = grep(chr, dfs$bin_id, value = T), amp = unlist(dfs[grep(chr, dfs$bin_id), ..id])) #the issue is dfs is now  data.table
     
     tmp$amp[grep("chrX", tmp$bin_id)] <- tmp$amp[grep("chrX", tmp$bin_id)]*0.5 #manually divide X by 2
+    tmp$amp[grep("chr10b", tmp$bin_id)] <- tmp$amp[grep("chr10b", tmp$bin_id)]*1.5 #manually divide X by 2
     tmp$bias <- tmp$amp
     
     #allele A:
@@ -88,8 +89,8 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("210503_9A", "2
   ccps$bin_id <- factor(as.character(ccps$bin_id), levels = mixedsort(unique(as.character(ccps$bin_id))))
   #return(ccps)
   #ccps <- ccps[mixedorder(as.character(bin_id))]
-  p <- ggplot(ccps[allele != "mid"], aes(x = bin_id, y = round(amp, digits = 3), 
-                                         fill = allele, group = sample)) + 
+  p <- ggplot(ccps[allele != "mid"], aes(x = bin_id, y = round(amp, digits = 3), fill = allele, group = sample)) + 
+    coord_cartesian(clip="off") + 
     geom_bar(stat = "identity", position = "dodge", width = 0.8, size = 0.7, colour = "black")
   
   if(plotAxisText) {
@@ -109,11 +110,11 @@ plot_barplots_of_AllelicAndExpBiasPerSamples <- function(ids = c("210503_9A", "2
       #geom_errorbar(data=ccps[allele == "mid"], 
       #              mapping=aes(x=bin_id, ymin=amp, ymax=amp, group = sample), 
       #              width=1, size=1, position = "dodge", color= cols[3]) + #cols(ngroups)[nmid]) + 
-      scale_y_continuous(breaks = c(0,.5,1,1.5,2,2.5,3), labels = c("0","","1","","2","","3"), limits = c(0, 3.25)) + 
-      coord_cartesian(clip="off") +
+      scale_y_continuous(breaks = c(0,.5,1,1.5,2,2.5,3), labels = c("0","","1","","2","","3"), limits = c(0, 4)) + #if boxs are getting clipped off remove or expand these limits
       geom_rangeframe(x=0, y=seq(0, 3, along.with = ccps[allele != "mid"]$bin_id)) + 
       theme_tufte() +
-      theme(aspect.ratio = 1/5, text=element_text(size=18), axis.ticks.x = element_blank(),
+      coord_cartesian(clip="off") +
+      theme(aspect.ratio = 1/5, text=element_text(size=17), axis.ticks.x = element_blank(),
             axis.text = element_text(color="black"), axis.title = element_blank()) 
       #geom_text(data = ccps[ bin_id == levels(ccps$bin_id)[1] & allele == "mid"], 
       #          mapping = aes(label = sample, x = bin_id, y = 0, group = sample), 

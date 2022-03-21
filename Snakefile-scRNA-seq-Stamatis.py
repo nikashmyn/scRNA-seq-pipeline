@@ -98,9 +98,9 @@ all_samples.extend(targ_samples)
 ########################
 ### INPUT-ONLY RULES ###
 ########################
-rule run_pipeline:
-    input:
-        expand("{path}/visual_results/.mockfile.visuals.txt", path=OUTDIR)
+#rule run_pipeline:
+#    input:
+#        expand("{path}/visual_results/.mockfile.visuals.txt", path=OUTDIR)
 
 rule align:
     input:
@@ -117,6 +117,10 @@ rule calc_metrics:
 rule change_rgtags:
     input:
         [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
+
+rule run_ASE:
+    input:
+        [expand("{path}/{experiment}/ASE/{samples}.ASE.table", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
 
 rule run_variant_calling:
     input:
@@ -314,6 +318,18 @@ rule index_RG_bams:
         bam_out = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai"
     shell:
         "samtools index {input.bam} "
+
+
+rule allele_specific_expression:
+    input:
+        bam_index = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai",
+        bam = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam",
+        fasta = config["ref_unzip_wdict"],
+        ref_SNPs = config['ref_het_SNPs'],
+    output:
+        table = "{path}/{experiment}/ASE/{samples}.ASE.table"
+    shell:
+        "gatk ASEReadCounter -R {input.fasta} -I {input.bam} -V {input.ref_SNPs} -O {output.table} "
 
 #Annotated indexed bams are now ready to be variant called with unified genotyper (UG). This script writes files with the UG calls. UG is fastest because it doesn't construct allles like heplotype caller.
 rule etai_genotype_generate_call:

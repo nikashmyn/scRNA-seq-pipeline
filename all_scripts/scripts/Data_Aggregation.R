@@ -207,8 +207,8 @@ rsemtpm <- as.data.frame(rsemtpm)
 message(sprintf("The dimensions of the TPM object is %s %s \n", dim(rsemtpm)[1], dim(rsemtpm)[2]))
 
 #exclude genes in excluded chrs
-genes_to_exclude <- geneRanges[which(!geneRanges$seqnames %in% configs$chr_to_excl),]
-rsemtpm <- rsemtpm[genes_to_exclude$id,]
+#genes_to_exclude <- geneRanges[which(!geneRanges$seqnames %in% configs$chr_to_excl),]
+#rsemtpm <- rsemtpm[genes_to_exclude$id,]
 
 #Save data
 saveRDS(object = rsemtpm, file = sprintf("%s/aggregated_results/all_experiments_rsemtpm.rds", wkpath))
@@ -278,9 +278,9 @@ all_vars$B <- all_vars$B[,..common_samples]
 setnames(all_vars$B, common_IDs)
 
 #exclude noisy chromosomes from raw data before normalization
-all_vars$A <- all_vars$A[which(!all_vars$features$seqnames %in% configs$chr_to_excl),]
-all_vars$B <- all_vars$B[which(!all_vars$features$seqnames %in% configs$chr_to_excl),]
-all_vars$features <- all_vars$features[which(!all_vars$features$seqnames %in% configs$chr_to_excl),]
+#all_vars$A <- all_vars$A[which(!all_vars$features$seqnames %in% configs$chr_to_excl),]
+#all_vars$B <- all_vars$B[which(!all_vars$features$seqnames %in% configs$chr_to_excl),]
+#all_vars$features <- all_vars$features[which(!all_vars$features$seqnames %in% configs$chr_to_excl),]
 
 #save data
 saveRDS(object = all_vars, file = sprintf("%s/aggregated_results/all_vars.rds", wkpath))

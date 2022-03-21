@@ -31,6 +31,7 @@ normal_name: "RPE-Bulk2" #RPE1-bulk
  # alleles: "/czlab/Data/RPE-1_Genotyping_GRCh38/v.1/RPE-1.hets.vcf.gz"
  # alleles: "/czlab/Data/RPE-1/VariantCalling/RPE-1.hets.chr1-X.BA.SNP.sites.vcf.gz"
 alleles: "/pellmanlab/nikos/Stam_Etai_Data/work_in_progress/RPE-1.hets.chr1-X.BA.SNP.sites.vcf.gz"
+ref_het_SNPs: /pellmanlab/nikos/Stam_Etai_Data/ref_het_SNPs/RPE-1.hets.chr1-X.BA.SNPs_only.recode.vcf.gz
 
 ### Samples Files ###
 samplesdir: /pellmanlab/nikos/scRNA-seq-pipeline/samples
