@@ -1,3 +1,18 @@
+##########################
+### Script Explanation ###
+##########################
+
+#-------------------------------------------------------
+#This script was written by Nikos Mynhier 
+
+#####################################
+### Read in STAR output QC tables ###
+#####################################
+
+#read in anno list
+anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
+changeCols <- c("WTA.plate", "Fastq_files") 
+anno[,(changeCols):= lapply(.SD, as.character), .SDcols = changeCols] 
 
 #Generate the directories based on experiments
 dir_paths <- list()
@@ -29,7 +44,6 @@ qc <- qcmat[grep("^N_", rownames(qcmat)), ]
 counts <- qcmat[-grep("^N_", rownames(qcmat)), ]
 
 qc <- rbind(qc, geneCounts=colSums(counts))
-list(counts=counts, qc=qc)
 
 #Divide by cols by col sums and multiply by 100 to get a percent
 qc2 <- round(sweep(qc, 2, colSums(qc), FUN = "/")*100)
@@ -45,7 +59,36 @@ mk_analysis_dir <- sprintf("mkdir -p  %s/QC", wkpath)
 system(mk_analysis_dir)
 
 #Write QC information for this experiment to new file path
-write.csv(x = qcs, file = sprintf("%s/QC/QC.csv", wkpath)) 
+write.csv(x = qcs, file = sprintf("%s/QC/QC.csv", wkpath), row.names = F) 
+all_QC <- read_csv(file = sprintf("%s/QC/QC.csv", wkpath))
+
+#reduce all QC to those in annotation list
+all_QC <- all_QC[which(all_QC$id %in% anno$WTA.plate),]  #Exclude cells not in the annotation list
+
+#Save Data
+saveRDS(object = all_QC, file = sprintf("%s/aggregated_results/all_QC.rds", wkpath))
+
+#plot QC to dynamically decide parameters. 
+#hist(all_QC$th5, xlab = "Genes with >5 read coverage", main = "Th5 Distribution Across All Samples")
+#abline(v = 4000)
+#cutoff_vals <- quantile(all_QC$th5, c(.05, .10, .25))
+
+#####################################
+# Add QC to annotations for new list:
+#####################################
+
+#Reduce to mergable dataframes
+anno_QC <- data.table(anno[which(anno$WTA.plate %in% all_QC$id),c(1:22)])
+QC_anno <- data.table(all_QC[which(all_QC$id %in% anno$WTA.plate),])
+
+#merge the dataframes
+setkeyv(anno_QC, "WTA.plate")
+setnames(QC_anno, old = "id", new = "WTA.plate")
+setkeyv(QC_anno, "WTA.plate")
+new_anno <- merge(anno_QC, QC_anno, by="WTA.plate")
+
+#save new anno list with of all processed samples with QC information.
+write.csv(new_anno, sprintf("%s/aggregated_results/analysis_list.csv", dirpath))
 
 
 

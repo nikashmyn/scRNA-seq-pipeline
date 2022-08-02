@@ -5,18 +5,6 @@
 #-------------------------------------------------------
 #This script was written by Nikos Mynhier 
 
-#########################################
-#### Input Desired script Directories ###
-#########################################
-#
-#args <- commandArgs(trailingOnly = TRUE)
-##args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025a",  "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ")
-#print(args)
-#scriptsdir <- args[1]
-#wkpath <- dirpath <- args[2]
-#datadir <- args[3]
-#experiments <- args[4:length(args)]
-
 #################################
 ### Read in ASE and TPM files ###
 #################################
@@ -25,7 +13,6 @@
 TPM_nolim <- readRDS(file=sprintf("%s/aggregated_results/TPM.nolim.rds", dirpath))
 TPM <- readRDS(file=sprintf("%s/aggregated_results/TPM.bygene.rds", dirpath))
 ASE <- readRDS(file=sprintf("%s/aggregated_results/ASE.bygene.rds", dirpath))
-#AS_TPM <- readRDS(file=sprintf("%s/aggregated_results/AS-TPM.bygene.rds", dirpath))
 
 #Control samples
 controlSampleIDs <- readRDS(sprintf("%s/aggregated_results/controlSampleIDs.rds", wkpath))
@@ -57,7 +44,7 @@ norm_data_table <- function(mat, anno_cols = 6) {
 ### aggregate TPM whole genome ###
 ##################################
 
-adjust_by_inv_var <- function(mat, anno_cols = 6) {
+adjust_by_inv_var <- function(mat, anno_cols = 6, w_mat = mat) {
    
    #read in geneRanges
    geneRanges <- readRDS(sprintf("%s/geneRanges_Nikos.rds", datadir))
@@ -67,21 +54,26 @@ adjust_by_inv_var <- function(mat, anno_cols = 6) {
    mat$chr <- as.character(mat$chr) #turn factor chrs to character chrs
    setkey(mat, chr, start, end)
    
+   #Ensure that chr columns in character and sort weighting mat
+   w_mat <- data.table(w_mat)
+   w_mat$chr <- as.character(w_mat$chr) #turn factor chrs to character chrs
+   setkey(w_mat, chr, start, end)
+   
    #get the inv variance of each row #TODO: only get var over control cells?
    cols <- c(1:anno_cols)
-   gene_inv_variance <- 1/rowVars(as.matrix(mat[,..controlSampleIDs]), na.rm = T)
-   gene_inv_variance[gene_inv_variance == Inf] <- 0
+   gene_inv_variance <- 1/rowVars(as.matrix(w_mat[,..controlSampleIDs]), na.rm = T)
+   gene_inv_variance[gene_inv_variance == Inf] <- 0 #In this version points with zero variance are not considered.
    gene_inv_variance[is.na(gene_inv_variance)] <- 0
    
    #merge weights with mat for aggregation
-   mat_w <- data.table(cbind(weight = gene_inv_variance, mat))
+   mat_w <- data.table(cbind(weight = gene_inv_variance, w_mat))
    
    #aggregate with mean weighted by inv variance
    cols <- c(1:(anno_cols+1))
    sum_cols <- colnames(mat_w[,-..cols])
    mat_w_cell <- data.table(mat_w %>% summarise_at(sum_cols, funs(weighted.mean(., weight, na.rm = T))))
    
-   #adjust the input matrix
+   #adjust the input matrix by the adjustment factor determined from weighting mat
    cols <- c(1:anno_cols)
    adjustment_mat <- data.table(t((replicate(nrow(mat), unlist(mat_w_cell)))))
    mat_adjusted <- (mat[,-..cols] / adjustment_mat)
@@ -228,12 +220,5 @@ TPM2 <- split_chr10_anno(TPM)
 TPM_normed <- norm_data_table(TPM2)
 TPM_adjusted <- adjust_by_inv_var(TPM_normed)
 saveRDS(TPM_adjusted, file=sprintf("%s/aggregated_results/TPM.bygene.normed.rds", dirpath))
-
-## or #
-#
-##new approach
-#TPM_adjusted_2 <- global_adjustment(TPM)
-#TPM_normed_2 <- norm_data_table(TPM_adjusted_2)
-#saveRDS(TPM_normed_2, file=sprintf("%s/aggregated_results/TPM.bygene.normed.rds", dirpath))
 
 

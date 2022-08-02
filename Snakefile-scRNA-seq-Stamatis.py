@@ -77,8 +77,14 @@ misc_samples = set(SIS1025_misc_samples['samples'])
 SIS1025_targ_samples = pd.read_table(config["targ_samples"], header=0)
 targ_samples = set(SIS1025_targ_samples['samples'])
 
+#Mijung experiment
+mijung_samples_list = pd.read_table(config["mijung_samples"], header=0)
+mijung_samples = set(mijung_samples_list['samples'])
+
 #list of experiments sets
-experiments = [ "SIS1025a", "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ" ]
+#experiments = [ "SIS1025a", "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ", "mijung_samples"]
+experiments = [ "SIS1025a", "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ"]
+#samples_set = [a_samples, b_samples, c_samples, d_samples, e_samples, f_L1_samples, f_L2_samples, g_L1_samples, g_L2_samples, misc_samples, targ_samples, mijung_samples]
 samples_set = [a_samples, b_samples, c_samples, d_samples, e_samples, f_L1_samples, f_L2_samples, g_L1_samples, g_L2_samples, misc_samples, targ_samples]
 
 #All samples
@@ -94,6 +100,7 @@ all_samples.extend(g_L1_samples)
 all_samples.extend(g_L2_samples)
 all_samples.extend(misc_samples)
 all_samples.extend(targ_samples)
+#all_samples.extend(mijung_samples)
 
 ########################
 ### INPUT-ONLY RULES ###
@@ -101,6 +108,10 @@ all_samples.extend(targ_samples)
 #rule run_pipeline:
 #    input:
 #        expand("{path}/visual_results/.mockfile.visuals.txt", path=OUTDIR)
+
+rule all:
+    input:
+        expand("{path}/aggregated_results/.mockfile.run_macro.txt", path=OUTDIR)
 
 rule align:
     input:
@@ -138,13 +149,17 @@ rule run_check_data:
     input:
         [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
 
-rule run_data_aggregation:
+rule run_analysis_macro:
     input:
-        expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", path=OUTDIR, experiment=experiments)
+        expand("{path}/aggregated_results/.mockfile.run_macro.txt.", path=OUTDIR)
 
-rule run_data_aggregation_macro:
-    input:
-        expand("{path}/aggregated_results/.mockfile.data_aggregation_macro.txt", path=OUTDIR)
+#rule run_data_aggregation:
+#    input:
+#        expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", path=OUTDIR, experiment=experiments)
+#
+#rule run_data_aggregation_macro:
+#    input:
+#        expand("{path}/aggregated_results/.mockfile.data_aggregation_macro.txt", path=OUTDIR)
 
 #######################
 ### GENOME INDEXING ###
@@ -332,38 +347,38 @@ rule allele_specific_expression:
         "gatk ASEReadCounter -R {input.fasta} -I {input.bam} -V {input.ref_SNPs} -O {output.table} "
 
 #Annotated indexed bams are now ready to be variant called with unified genotyper (UG). This script writes files with the UG calls. UG is fastest because it doesn't construct allles like heplotype caller.
-rule etai_genotype_generate_call:
-    input:
-        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
-    output:
-        mockfile = "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt"
-    params:
-        ls = "{path}/{experiment}/VarCall_BAMs/*RG.out.bam",
-        hets = config["alleles"],
-        ref = config["ref_unzip_wdict"],
-        GATK = config["GATK_path"],
-        Picard = config["Picard_path"],
-        bamlist = "{path}/{experiment}/VarCall_BAMs/{experiment}.bamfiles.list",
-        script = f"{skdir}/all_scripts/scripts/RPE-1_GRCh38_Genotype_nikos.sh", #*_etai.sh
-        out_name = "{path}/{experiment}/Variants/{experiment}"
-    shell:
-        "ls {params.ls} > {params.bamlist} "
-        "&& bash {params.script} {params.bamlist} {params.out_name} 1 {params.ref} {params.hets} {params.GATK} {params.Picard} "
-        "&& touch {output.mockfile}"
+#rule etai_genotype_generate_call:
+#    input:
+#        [expand("{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))]
+#    output:
+#        mockfile = "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt"
+#    params:
+#        ls = "{path}/{experiment}/VarCall_BAMs/*RG.out.bam",
+#        hets = config["alleles"],
+#        ref = config["ref_unzip_wdict"],
+#        GATK = config["GATK_path"],
+#        Picard = config["Picard_path"],
+#        bamlist = "{path}/{experiment}/VarCall_BAMs/{experiment}.bamfiles.list",
+#        script = f"{skdir}/all_scripts/scripts/RPE-1_GRCh38_Genotype_nikos.sh", #*_etai.sh
+#        out_name = "{path}/{experiment}/Variants/{experiment}"
+#    shell:
+#        "ls {params.ls} > {params.bamlist} "
+#        "&& bash {params.script} {params.bamlist} {params.out_name} 1 {params.ref} {params.hets} {params.GATK} {params.Picard} "
+#        "&& touch {output.mockfile}"
 
 #Now the the files with UG calls are ready we can parallelize the runs. These UG calls create one vcf file (for each chr) from all the bams in the experiment.
-rule etai_genotype_run:
-    input:
-        "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt",
-    output:
-        "{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt"
-    params:
-        "{path}/{experiment}/Variants/{experiment}_RPE_hets_GT.UG_jobs.{chrs}.sh"
-    log:
-        "{path}/{experiment}/Variants/{experiment}.rungenotypecmds.{chrs}.log"
-    shell:
-        "sh {params} 2> {log} " # "parallel --jobs {threads} < {params} "
-        "&& touch {output}"
+#rule etai_genotype_run:
+#    input:
+#        "{path}/{experiment}/Variants/.mockfile.{experiment}.gengenotypecmds.txt",
+#    output:
+#        "{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt"
+#    params:
+#        "{path}/{experiment}/Variants/{experiment}_RPE_hets_GT.UG_jobs.{chrs}.sh"
+#    log:
+#        "{path}/{experiment}/Variants/{experiment}.rungenotypecmds.{chrs}.log"
+#    shell:
+#        "sh {params} 2> {log} " # "parallel --jobs {threads} < {params} "
+#        "&& touch {output}"
 
 ####################################
 ### DATA AGGREGATION | ANALYSIS  ###
@@ -372,43 +387,61 @@ rule etai_genotype_run:
 #Before moving on to the analysis we check the required files have been created. 
 rule check_data:
     input:
-        [expand("{path}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
+       # [expand("{path}/{experiment}/RSEM/output/.{samples}_mockfile.rsem_calc.txt", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
         [expand("{path}/{experiment}/Metrics/{samples}.MultipleMetrics.alignment_summary_metrics", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
-        expand("{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", path=OUTDIR, experiment=experiments, chrs=chroms),
+        #expand("{path}/{experiment}/Variants/.mockfile.{experiment}.rungenotypecmds.{chrs}.txt", path=OUTDIR, experiment=experiments, chrs=chroms),
+        [expand("{path}/{experiment}/ASE/{samples}.ASE.table", path=OUTDIR, experiment=experiments[i], samples=samples_set[i]) for i in range(len(experiments))],
     output:
         mock_out = "{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt"
     shell:
         "touch {output.mock_out}"
 
-#We now use this script to aggregate the data into R matrices for each experiment.
-rule aggregate_data:
+#We now run a R macro for the data analysis scripts
+rule analysis_macro:
     input:
         mock_in = [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
     output:
-        mock_out = "{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
+        mock_out = "{path}/aggregated_results/.mockfile.run_macro.txt",
     params:
         script_dir = f"{skdir}/all_scripts",
-        expr = "{experiment}",
+        #expr = f"{experiments}",
+        expr = ' '.join(experiments),
         wk_dir = f"{OUTDIR}",
-        script = f"{skdir}/all_scripts/scripts/Analysis_Etai_Snakemake.R",
+        script = f"{skdir}/all_scripts/scripts/analysis_macro.R",
         datadir = f"{datadir}"
-    threads: 1
     shell:
-        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.expr} {threads} "
+        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.expr} "
         "&& touch {output.mock_out} "
 
-rule aggregate_data_macro_and_models:
-    input:
-        mock_in = [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))],
-    output:
-        mock_out = f"{OUTDIR}/aggregated_results/.mockfile.data_aggregation_macro.txt", 
-    params:
-        script_dir = f"{skdir}/all_scripts",
-        all_experiments = [experiments[i] for i in range(len(experiments))],
-        wk_dir = f"{OUTDIR}",
-        script = f"{skdir}/all_scripts/scripts/Data_Aggregation.R",
-        datadir = f"{datadir}"
-    shell:
-        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.all_experiments} "
-        "&& touch {output.mock_out} "
+##We now use this script to aggregate the data into R matrices for each experiment.
+#rule aggregate_data:
+#    input:
+#        mock_in = [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_tracking.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))]
+#    output:
+#        mock_out = "{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt",
+#    params:
+#        script_dir = f"{skdir}/all_scripts",
+#        expr = "{experiment}",
+#        wk_dir = f"{OUTDIR}",
+#        script = f"{skdir}/all_scripts/scripts/Analysis_Etai_Snakemake.R",
+#        datadir = f"{datadir}"
+#    threads: 1
+#    shell:
+#        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.expr} {threads} "
+#        "&& touch {output.mock_out} "
+#
+#rule aggregate_data_macro_and_models:
+#    input:
+#        mock_in = [expand("{path}/{experiment}/Analysis/.mockfile.{experiment}.data_aggregation.txt", path=OUTDIR, experiment=experiments[i]) for i in range(len(experiments))],
+#    output:
+#        mock_out = f"{OUTDIR}/aggregated_results/.mockfile.data_aggregation_macro.txt", 
+#    params:
+#        script_dir = f"{skdir}/all_scripts",
+#        all_experiments = [experiments[i] for i in range(len(experiments))],
+#        wk_dir = f"{OUTDIR}",
+#        script = f"{skdir}/all_scripts/scripts/Data_Aggregation.R",
+#        datadir = f"{datadir}"
+#    shell:
+#        "Rscript {params.script} {params.script_dir} {params.wk_dir} {params.datadir} {params.all_experiments} "
+#        "&& touch {output.mock_out} "
 

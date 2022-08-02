@@ -5,19 +5,7 @@
 #-------------------------------------------------------
 #This script was written by Nikos Mynhier 
 
-#########################################
-#### Input Desired script Directories ###
-#########################################
-#
-#args <- commandArgs(trailingOnly = TRUE)
-##args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025a",  "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ")
-#print(args)
-#scriptsdir <- args[1]
-#wkpath <- dirpath <- args[2]
-#datadir <- args[3]
-#experiments <- args[4:length(args)]
-
-############################################################################################################
+#-------------------------------------------------------
 #Read in and aggregate results from ASEReadCounter
 
 ########################################
@@ -26,6 +14,8 @@
 
 #read in anno list
 anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
+anno$Fastq_files <- as.character(anno$Fastq_files)
+anno$WTA.plate <- as.character(anno$WTA.plate)
 
 #Read in centromere data and get ranges for each chr
 centromeres <- readRDS( sprintf("%s/centromeres.rds", datadir) )
@@ -52,7 +42,7 @@ setkey(geneAnnos, "chr", "start", "end")
 saveRDS(geneRanges, sprintf("%s/geneRanges_Nikos.rds", datadir))
 
 #read in phase from Greg Brunette
-phase_file <- "/pellmanlab/stam_niko/test_ASE/Alleles_v2/RPE1_Haplotype_update.dat"
+phase_file <- "/pellmanlab/nikos/Stam_Etai_Data/ref_het_SNPs/RPE1_Haplotype_update.dat"
 hets_phase <- data.table(read_table(phase_file))
 
 #Filter hets file by Greg's recommended parameters sample_count > 10 and MAF > 0.348 
@@ -64,6 +54,7 @@ hets_phase <- hets_phase[which(!hets_phase$Haplotype == 0),]
 hets_phase <- hets_phase[,c("chr", "pos", "Haplotype")]
 setkey(hets_phase, "chr", "pos", "Haplotype")
 
+
 #Generate the directories based on experiments
 dir_paths <- list()
 for (i in experiments) {dir_paths <- cbind(dir_paths, sprintf("%s/%s/ASE", wkpath, i))}
@@ -74,14 +65,20 @@ for (i in 1:length(dir_paths)){files <- append(files, paste(dir_paths[i], list.f
 
 #List sample names
 files_samples <- files
-for (i in 1:length(anno$Fastq_files)){
+message(head(files_samples))
+for (i in 1:length(anno$Fastq_files)){ 
   res <- grep(pattern = sprintf("_%s_", anno$Fastq_files[i]), ignore.case = T, value=T, x = files)
   if (length(res) < 1) {res <- grep(pattern =  anno$Fastq_files[i], ignore.case = T, value=T, x = files)}
+  print(anno$Fastq_files[i])
+  print(anno$WTA.plate[i])
   files_samples[which(files == res[1])] <- anno$WTA.plate[i]
   files_samples[which(files == res[2])] <- sprintf("%s_L2", anno$WTA.plate[i])
 }
 files_samples_v2 <- append(files_samples[which(files_samples %in% anno$WTA.plate)], files_samples[which(files_samples %in% sprintf("%s_L2", anno$WTA.plate))])
 files_v2 <- append(files[which(files_samples %in% anno$WTA.plate)], files[which(files_samples %in% sprintf("%s_L2", anno$WTA.plate))])
+
+message(head(files_samples))
+print("---")
 
 ### TMP ### Remove 180201-6A_S7_L001 because it only has 4 SNPs
 files_samples_v2_to_remove <- grep(pattern = "180201_6A", ignore.case = T, value=T, x = files_samples_v2)
@@ -119,7 +116,7 @@ get_allelic_var_matrix <- function(file, cell_name, hets_phase_info) {
       Allelic_var_cov <- rbind(Allelic_var_cov, cbind(tmp[,c("cell", "chr", "pos")], cbind(allele = "A", counts = tmp$refCount))) #add allele annotation with ref as A
       Allelic_var_cov <- rbind(Allelic_var_cov, cbind(tmp[,c("cell", "chr", "pos")], cbind(allele = "B", counts = tmp$altCount))) #add allele annotation with alt as B
     }
-    if (tmp$Haplotype == -1) { #+1 haplotype annotation means ref count is allele B
+    if (tmp$Haplotype == -1) { #-1 haplotype annotation means ref count is allele B
       Allelic_var_cov <- rbind(Allelic_var_cov, cbind(tmp[,c("cell", "chr", "pos")], cbind(allele = "B", counts = tmp$refCount))) #add allele annotation with ref as B
       Allelic_var_cov <- rbind(Allelic_var_cov, cbind(tmp[,c("cell", "chr", "pos")], cbind(allele = "A", counts = tmp$altCount))) #add allele annotation with alt as A
     }
@@ -267,6 +264,7 @@ ASE$AF[ASE$AF == "NaN"] <- NA #for the 0/0 points
 ASE$TC <- cbind(ASE$A[,c(1:6)],  (ASE$A[,-c(1:6)] + ASE$B[,-c(1:6)]) )
 
 saveRDS(ASE, file=sprintf("%s/aggregated_results/ASE.bygene.rds", dirpath))
+ASE <- readRDS(file=sprintf("%s/aggregated_results/ASE.bygene.rds", dirpath))
 
 ############################################################################################################
 #End of Script

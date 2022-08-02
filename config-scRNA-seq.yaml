@@ -46,6 +46,7 @@ g1_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025g_L1_samples.txt
 g2_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/SIS1025g_L2_samples.txt
 misc_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/misc_early_samples.txt
 targ_samples: /pellmanlab/nikos/scRNA-seq-pipeline/samples/targeted_MN_samples.txt 
+mijung_samples: /czlab/nikos/stam_mijung/samples/stam_mijung_samples.txt
 
 ### Picard Options ###
 # for configuring picard "max_records_in_ram", determines memory usage 

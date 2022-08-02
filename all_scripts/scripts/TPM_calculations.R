@@ -5,39 +5,22 @@
 #-------------------------------------------------------
 #This script was written by Nikos Mynhier 
 
-#########################################
-#### Input Desired script Directories ###
-#########################################
-#
-#args <- commandArgs(trailingOnly = TRUE)
-##args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025a",  "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ")
-#print(args)
-#scriptsdir <- args[1]
-#wkpath <- dirpath <- args[2]
-#datadir <- args[3]
-#experiments <- args[4:length(args)]
-
-######################
-### Source Scripts ###
-######################
-
-library(tidyverse)  # data manipulation
-library(cluster)    # clustering algorithms
-#install.packages("factoextra")
-library(factoextra) # clustering algorithms & visualization
-source(sprintf('%s/scripts/fromRawTPMtoExprsRatio.R', scriptsdir))
-
 ################
 #### Imports ###
 ################
 
 #Annotion list with information on every cell and IDs of control samples
 anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
+anno$Fastq_files <- as.character(anno$Fastq_files)
+anno$WTA.plate <- as.character(anno$WTA.plate)
 controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
 
 #import gene annotations
 geneRanges <- readRDS(sprintf("%s/geneRanges_Nikos.rds", datadir))
 setkey(geneRanges, "gene_id")
+
+#import QC info for use in curating control cells
+all_QC <- readRDS(file = sprintf("%s/aggregated_results/all_QC.rds", wkpath))
 
 ###################################
 ### Read in RSEM output tables ###
@@ -143,15 +126,36 @@ TPM_2 <- cbind( rsemtpm[,-..L1_L2_cells], ((rsemtpm[,..cells] + rsemtpm[,..L2_ce
 col_order <- append(colnames(TPM_2)[c(1:6)], sort(colnames(TPM_2)[-c(1:6)]))
 TPM_3 <- TPM_2[,..col_order]
 
-########################################
-### TMP Work Around for Missing cell ###
-########################################
+#####################################
+### Take only cells with ASE data ###
+#####################################
 
 ASE <- readRDS(file=sprintf("%s/aggregated_results/ASE.bygene.rds", dirpath))
 
 cols <- intersect(colnames(ASE$AF), colnames(TPM_3))
 
 TPM <- TPM_3[,..cols] 
+
+#save TPM intermediate file
+saveRDS(TPM, file=sprintf("%s/aggregated_results/raw_TPM.rds", dirpath))
+write.csv(TPM, file=sprintf("%s/aggregated_results/raw_TPM.csv", dirpath), row.names = F)
+#TPM <- readRDS(file=sprintf("%s/aggregated_results/raw_TPM.rds", dirpath))
+
+##################################################
+### Control Samples Collection for Annotations ###
+##################################################
+
+#Get control samples from all experiments. Largest cohort of samples 
+controlSampleIDs <- anno[ (key_pairs == "c1" | key_pairs == "c2" | key_pairs == "c3")]$WTA.plate
+controlSampleIDs <- controlSampleIDs[controlSampleIDs %in% colnames(TPM)]
+controlSampleIDs <- controlSampleIDs[ which( controlSampleIDs %in% all_QC$id[ which(all_QC$th5 > 6000)] ) ]
+saveRDS(controlSampleIDs, sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
+write.csv(controlSampleIDs, file=sprintf("%s/aggregated_results/controlSampleIDs.csv", dirpath), row.names = F)
+
+#save just the control cell TPM for 10x analysis
+#cols <- c(colnames(TPM_3)[1:6], controlSampleIDs)
+#control_TPM <- TPM_3[,..cols]
+#write.csv(control_TPM, file=sprintf("%s/aggregated_results/control_TPM.csv", dirpath), col_names = T )
 
 #################################
 ### Remove mono-allelic genes ###
@@ -190,6 +194,7 @@ ASE$TC <- ASE$TC[!which(ASE$TC$gene_id %in% monoallelic_genes_all),..cols]
 #Save TPM object by gene
 TPM$chr <- as.character(unlist(TPM$chr))
 saveRDS(TPM, file=sprintf("%s/aggregated_results/TPM.nolim.rds", dirpath))
+TPM <- readRDS(file=sprintf("%s/aggregated_results/TPM.nolim.rds", dirpath))
 
 ################################################
 ### Eliminate genes with very low expression ###

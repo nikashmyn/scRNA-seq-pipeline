@@ -5,25 +5,11 @@
 #-------------------------------------------------------
 #This script was written by Nikos Mynhier 
 
-#########################################
-#### Input Desired script Directories ###
-#########################################
-#
-#args <- commandArgs(trailingOnly = TRUE)
-##args <- c("/pellmanlab/nikos/scRNA-seq-pipeline/all_scripts", "/pellmanlab/stam_niko/rerun_6_9_2021/data", "/pellmanlab/nikos/Stam_Etai_Data", "SIS1025a",  "SIS1025b", "SIS1025c", "SIS1025d", "SIS1025e", "SIS1025f_Lane1", "SIS1025f_Lane2", "SIS1025g_Lane1", "SIS1025g_Lane2", "SIS1025misc", "SIS1025targ")
-#print(args)
-#scriptsdir <- args[1]
-#wkpath <- dirpath <- args[2]
-#datadir <- args[3]
-#experiments <- args[4:length(args)]
-
 #################################
 ### Read in ASE and TPM files ###
 #################################
 
 TPM_normed <- readRDS(file=sprintf("%s/aggregated_results/TPM.bygene.normed.rds", dirpath))
-#ASE_normed <- readRDS(file=sprintf("%s/aggregated_results/ASE.bygene.normed.rds", dirpath))
-#AS_TPM_normed <- readRDS(file=sprintf("%s/aggregated_results/AS-TPM.bygene.normed.rds", dirpath))
 ASE <- readRDS(file=sprintf("%s/aggregated_results/ASE.bygene.rds", dirpath))
 controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
 
@@ -65,7 +51,6 @@ agg_by_tpm_inv_var <- function(genomic_region = 10000000, mat, anno_cols = 6) {
   setkey(mat, chr, start, end)
   
   #foverlaps mat with genomic coordinate bins
-  #mat_bin <- foverlaps(mat, chr_seq_all, mult = "first")
   mat_bin <- foverlaps(chr_seq_all, mat, nomatch=NA) #
   
   #Relabel columns and make bin numeric
@@ -73,20 +58,14 @@ agg_by_tpm_inv_var <- function(genomic_region = 10000000, mat, anno_cols = 6) {
   setnames(mat_bin, old=c("start", "end", "i.start", "i.end"), new=c("gene_start", "gene_end", "bin_start", "bin_end"))
   mat_bin <- cbind(mat_bin[,c("chr", "bin", "bin_start", "bin_end", "gene_id", "gene_start", "gene_end", "width", "strand")], mat_bin[,-c("chr", "bin", "bin_start", "bin_end", "gene_id", "gene_start", "gene_end", "width", "strand")])
   
-  #get the inv variance of each row #TODO: only get var over control cells?
+  #get the inv variance of each row 
   cols <- c(1:anno_cols)
   gene_inv_variance <- 1/rowVars(as.matrix(mat_bin[,..controlSampleIDs]), na.rm = T)
-  gene_inv_variance[gene_inv_variance == Inf] <- 0
   gene_inv_variance[is.na(gene_inv_variance)] <- 0
+  #gene_inv_variance[gene_inv_variance == Inf] <- 0
+  gene_inv_variance_noinf <- gene_inv_variance[-which(gene_inv_variance == Inf)]
+  gene_inv_variance[gene_inv_variance == Inf] <- quantile(probs = c(.999), gene_inv_variance_noinf)
   
-  ##plot(variance by avg tpm in control)
-  #vars <- unlist(rowVars(as.matrix(TPM[,-c(1:6)]), na.rm = T))
-  #means <- unlist(rowMeans(as.matrix(TPM[,-c(1:6)]), na.rm = T))
-  #norm_vars <- unlist(rowVars(as.matrix(tpm[,-c(1:6)]), na.rm = T))
-  #norm_means <- unlist(rowMeans(as.matrix(tpm[,-c(1:6)]), na.rm = T))
-  #plot(log2(means), log2(vars))
-  #plot(log2(means), log2(norm_vars))
-  #plot(log2(norm_means), log2(norm_vars))
   
   #merge weights with mat for aggregation
   mat_w <- data.table(cbind(weight = gene_inv_variance, mat_bin))
@@ -118,10 +97,7 @@ agg_by_tpm_inv_var <- function(genomic_region = 10000000, mat, anno_cols = 6) {
 
 #use function to bin each 
 ASE_bybin <- list()
-#ASE_bybin$A <- agg_by_tpm_inv_var(tpm = ASE_normed$A, mat = ASE_normed$A)
-#ASE_bybin$B <- agg_by_tpm_inv_var(tpm = ASE_normed$B, mat = ASE_normed$B)
-ASE_bybin$AF <- agg_by_tpm_inv_var(mat = ASE$AF)
-#ASE_bybin$TC <- agg_by_tpm_inv_var(tpm = ASE_normed$TC, mat = ASE_normed$TC)
+ASE_bybin$AF <- agg_by_tpm_inv_var(mat = ASE$AF, genomic_region = 20000000)
 
 saveRDS(ASE_bybin, file=sprintf("%s/aggregated_results/ASE.inv_var.bybin.rds", dirpath))
 
@@ -130,19 +106,9 @@ saveRDS(ASE_bybin, file=sprintf("%s/aggregated_results/ASE.inv_var.bybin.rds", d
 ############################################
 
 #use function to bin each 
-TPM_bybin <- agg_by_tpm_inv_var(mat = TPM_normed)
+TPM_bybin <- agg_by_tpm_inv_var(mat = TPM_normed, genomic_region = 20000000)
 
 saveRDS(TPM_bybin, file=sprintf("%s/aggregated_results/TPM.inv_var.bybin.rds", dirpath))
-
-###############################################
-### aggregate AS-TPM by genomic coordinates ###
-###############################################
-
-#AS_TPM_bybin <- list()
-#AS_TPM_bybin$A <- agg_by_tpm_inv_var(tpm = AS_TPM_normed$A, mat = AS_TPM_normed$A)
-#AS_TPM_bybin$B <- agg_by_tpm_inv_var(tpm = AS_TPM_normed$B, mat = AS_TPM_normed$B)
-#
-#saveRDS(AS_TPM_bybin, file=sprintf("%s/aggregated_results/AS-TPM.inv_var.bygene.rds", dirpath))
 
 ############################
 #### Calculate AS-TPM v2 ###
@@ -158,7 +124,7 @@ saveRDS(AS_TPM_bybin, file=sprintf("%s/aggregated_results/AS-TPM.inv_var.bybin.r
 ### Function to aggregate with inverse variance over chromosome ###
 ###################################################################
 
-agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6) {
+agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6, simpleX = F) {
   
   #Ensure that chr columns in character and sort mat
   mat <- data.table(mat)
@@ -187,8 +153,11 @@ agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6) {
     #get the inv variance of each row #TODO: only get var over control cells?
     cols <- c(1:anno_cols)
     gene_inv_variance <- 1/rowVars(as.matrix(mat[,..controlSampleIDs]), na.rm = T)
-    gene_inv_variance[gene_inv_variance == Inf] <- 0
     gene_inv_variance[is.na(gene_inv_variance)] <- 0
+    #gene_inv_variance[gene_inv_variance == Inf] <- 0
+    gene_inv_variance_noinf <- gene_inv_variance[-which(gene_inv_variance == Inf)]
+    gene_inv_variance[gene_inv_variance == Inf] <- quantile(probs = c(.999), gene_inv_variance_noinf)
+    
     
     #merge weights with mat for aggregation
     mat_w <- data.table(cbind(weight = gene_inv_variance, mat))
@@ -199,6 +168,18 @@ agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6) {
     mat_byarm <- data.table(mat_w %>% 
                               group_by(arm) %>% 
                               summarise_at(sum_cols, funs(weighted.mean(., weight, na.rm = T))))
+    if(sum(is.na(mat_byarm$arm)) > 0) {mat_byarm_test <- mat_byarm[-is.na(mat_byarm$arm),]}
+    
+    if(simpleX) {
+      #aggregate with simple mean
+      mat_byarm_simpleX <- data.table(mat_w %>% 
+                                        group_by(arm) %>% 
+                                        summarise_at(sum_cols, funs(mean(., na.rm = T))))
+      if(sum(is.na(mat_byarm_simpleX$arm)) > 0) {mat_byarm_simpleX <- mat_byarm_simpleX[-is.na(mat_byarm_simpleX$arm),]}
+
+      #Use weighted mean arms but simple mean arms from chrX.
+      mat_byarm <- rbind(mat_byarm[-which(mat_byarm$arm %in% c("Xp", "Xq"))], mat_byarm_simpleX[which(mat_byarm_simpleX$arm %in% c("Xp", "Xq"))])
+    }
     
     #make sure all value columns are numeric
     changeCols <- colnames(mat_byarm)[-c(1)]
@@ -215,18 +196,29 @@ agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6) {
     #get the inv variance of each row #TODO: only get var over control cells?
     cols <- c(1:anno_cols)
     gene_inv_variance <- 1/rowVars(as.matrix(mat[,..controlSampleIDs]), na.rm = T)
-    gene_inv_variance[gene_inv_variance == Inf] <- 0
     gene_inv_variance[is.na(gene_inv_variance)] <- 0
+    #gene_inv_variance[gene_inv_variance == Inf] <- 0
+    gene_inv_variance_noinf <- gene_inv_variance[-which(gene_inv_variance == Inf)]
+    gene_inv_variance[gene_inv_variance == Inf] <- quantile(probs = c(.999), gene_inv_variance_noinf)
     
     #merge weights with mat for aggregation
     mat_w <- data.table(cbind(weight = gene_inv_variance, mat))
-    
+
     #aggregate with mean weighted by inv variance
     cols <- c(1:(anno_cols+1))
     sum_cols <- colnames(mat_w[,-..cols])
     mat_bychr <- data.table(mat_w %>% 
                               group_by(chr) %>% 
                               summarise_at(sum_cols, funs(weighted.mean(., weight, na.rm = T))))
+
+    if(simpleX){
+      #aggregate with simple mean
+      mat_bychr_simpleX <- data.table(mat_w %>% 
+                                        group_by(chr) %>% 
+                                        summarise_at(sum_cols, funs(mean(., na.rm = T))))
+      #Use weighted mean arms but simple mean arms from chrX.
+      mat_bychr <- rbind(mat_bychr[-which(mat_bychr$chr %in% c("chrX"))], mat_bychr_simpleX[which(mat_bychr_simpleX$chr %in% c("chrX"))])
+    }
     
     #make sure all value columns are numeric
     changeCols <- colnames(mat_bychr)[-c(1)]
@@ -238,64 +230,60 @@ agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6) {
 
 }
 
-############################
-### aggregate ASE by chr ###
-############################
+####################################
+### aggregate ASE and TPM by chr ###
+####################################
 
-#use function to bin each 
+#use function to bin by chr 
 ASE_bychr <- list()
-#ASE_bychr$A <- agg_inv_var_byarm_or_chr(mat = ASE_normed$A, size = "chr")
-#ASE_bychr$B <- agg_inv_var_byarm_or_chr(mat = ASE_normed$B, size = "chr")
-ASE_bychr$AF <- agg_inv_var_byarm_or_chr(mat = ASE$AF, size = "chr")
-#ASE_bychr$TC <- agg_inv_var_byarm_or_chr(mat = ASE_normed$TC, size = "chr")
+ASE_bychr$AF <- agg_inv_var_byarm_or_chr(mat = ASE$AF, size = "chr", simpleX = T)
 saveRDS(ASE_bychr, file=sprintf("%s/aggregated_results/ASE.inv_var.bychr.rds", dirpath))
-
-##TODO:BY arm may need to adjust foverlaps by switching which data is x and y so that there is a bin for each arm no matter what
-##use function to bin each 
-#ASE_byarm <- list()
-##ASE_byarm$A <- agg_inv_var_byarm_or_chr(mat = ASE_normed$A, size = "arm")
-##ASE_byarm$B <- agg_inv_var_byarm_or_chr(mat = ASE_normed$B, size = "arm")
-#ASE_byarm$AF <- agg_inv_var_byarm_or_chr(mat = ASE_normed$AF, size = "arm")
-##ASE_byarm$TC <- agg_inv_var_byarm_or_chr(mat = ASE_normed$TC, size = "arm")
-#saveRDS(ASE_byarm, file=sprintf("%s/aggregated_results/ASE.inv_var.byarm.rds", dirpath))
-
-############################
-### aggregate TPM by chr ###
-############################
 
 #use function to bin each 
 TPM_bychr <- agg_inv_var_byarm_or_chr(mat = TPM_normed, size = "chr")
 saveRDS(TPM_bychr, file=sprintf("%s/aggregated_results/TPM.inv_var.bychr.rds", dirpath))
 
-#factors <- global_factors(TPM_bychr, anno_cols = 1)
-#
-##use function to bin each 
-#TPM_byarm <- agg_inv_var_byarm_or_chr(mat = TPM_normed, size = "arm")
-#saveRDS(TPM_byarm, file=sprintf("%s/aggregated_results/TPM.inv_var.byarm.rds", dirpath))
 
-###############################
-### aggregate AS-TPM by chr ###
-###############################
+####################################
+### aggregate ASE and TPM by arm ###
+####################################
 
-#AS_TPM_bychr <- list()
-#AS_TPM_bychr$A <- agg_inv_var_byarm_or_chr(mat = AS_TPM_normed$A, size = "chr")
-#AS_TPM_bychr$B <- agg_inv_var_byarm_or_chr(mat = AS_TPM_normed$B, size = "chr")
-#saveRDS(AS_TPM_bychr, file=sprintf("%s/aggregated_results/AS-TPM.inv_var.bychr.rds", dirpath))
-#
-#AS_TPM_byarm <- list()
-#AS_TPM_byarm$A <- agg_inv_var_byarm_or_chr(mat = AS_TPM_normed$A, size = "arm")
-#AS_TPM_byarm$B <- agg_inv_var_byarm_or_chr(mat = AS_TPM_normed$B, size = "arm")
-#saveRDS(AS_TPM_byarm, file=sprintf("%s/aggregated_results/AS-TPM.inv_var.byarm.rds", dirpath))
+#recombine 10a and 10b for arm level analysis
+ASE_tmp <- copy(ASE)
+ASE_tmp$AF$chr[ASE_tmp$AF$chr %in% c("chr10a", "chr10b")] <- "chr10"
+TPM_tmp <- copy(TPM_normed)
+TPM_tmp$chr[TPM_tmp$chr %in% c("chr10a", "chr10b")] <- "chr10"
 
+#use function to bin by arm 
+ASE_byarm <- list()
+ASE_byarm$AF <- agg_inv_var_byarm_or_chr(mat = ASE_tmp$AF, size = "arm", simpleX = T)
+
+#use function to bin each 
+TPM_byarm <- agg_inv_var_byarm_or_chr(mat = TPM_tmp, size = "arm")
+
+#only take arms covered by both AF and TPM values
+covered_arms <- intersect(ASE_byarm$AF$arm, TPM_byarm$arm)
+covered_arms_noNA <- covered_arms[!is.na(covered_arms)]
+ASE_byarm$AF <- ASE_byarm$AF[which(ASE_byarm$AF$arm %in% covered_arms_noNA),]
+TPM_byarm <- TPM_byarm[which(TPM_byarm$arm %in% covered_arms_noNA),]
+
+#save the objects
+saveRDS(ASE_byarm, file=sprintf("%s/aggregated_results/ASE.inv_var.byarm.rds", dirpath))
+saveRDS(TPM_byarm, file=sprintf("%s/aggregated_results/TPM.inv_var.byarm.rds", dirpath))
 
 ############################
 #### Calculate AS-TPM v2 ###
 ############################
 
+#calculate AS_TPM by chr
 AS_TPM_bychr <- list()
-AS_TPM_bychr$A <- cbind(ASE_bychr$AF[,c(1:5)], (TPM_bychr[,-c(1:5)] * (2*ASE_bychr$AF[,-c(1:5)]) ))
-AS_TPM_bychr$B <- cbind(ASE_bychr$AF[,c(1:5)], (TPM_bychr[,-c(1:5)] * (2*(1-ASE_bychr$AF[,-c(1:5)])) ))
-
+AS_TPM_bychr$A <- data.table(cbind(ASE_bychr$AF[,c(1)], (TPM_bychr[,-c(1)] * (2*ASE_bychr$AF[,-c(1)]) )))
+AS_TPM_bychr$B <- data.table(cbind(ASE_bychr$AF[,c(1)], (TPM_bychr[,-c(1)] * (2*(1-ASE_bychr$AF[,-c(1)]))) ))
 saveRDS(AS_TPM_bychr, file=sprintf("%s/aggregated_results/AS-TPM.inv_var.bychr.rds", dirpath))
 
+#calculate AS_TPM by arm
+AS_TPM_byarm <- list()
+AS_TPM_byarm$A <- cbind(ASE_byarm$AF[,c(1)], (TPM_byarm[,-c(1)] * (2*ASE_byarm$AF[,-c(1)]) ))
+AS_TPM_byarm$B <- cbind(ASE_byarm$AF[,c(1)], (TPM_byarm[,-c(1)] * (2*(1-ASE_byarm$AF[,-c(1)]))) )
+saveRDS(AS_TPM_byarm, file=sprintf("%s/aggregated_results/AS-TPM.inv_var.byarm.rds", dirpath))
 
