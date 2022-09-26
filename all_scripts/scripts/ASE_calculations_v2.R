@@ -42,7 +42,7 @@ setkey(geneAnnos, "chr", "start", "end")
 saveRDS(geneRanges, sprintf("%s/geneRanges_Nikos.rds", datadir))
 
 #read in phase from Greg Brunette
-phase_file <- "/pellmanlab/nikos/Stam_Etai_Data/ref_het_SNPs/RPE1_Haplotype_update.dat"
+phase_file <- sprintf("%s/ref_het_SNPs/RPE1_Haplotype_update.dat", datadir)
 hets_phase <- data.table(read_table(phase_file))
 
 #Filter hets file by Greg's recommended parameters sample_count > 10 and MAF > 0.348 
@@ -69,16 +69,11 @@ message(head(files_samples))
 for (i in 1:length(anno$Fastq_files)){ 
   res <- grep(pattern = sprintf("_%s_", anno$Fastq_files[i]), ignore.case = T, value=T, x = files)
   if (length(res) < 1) {res <- grep(pattern =  anno$Fastq_files[i], ignore.case = T, value=T, x = files)}
-  print(anno$Fastq_files[i])
-  print(anno$WTA.plate[i])
   files_samples[which(files == res[1])] <- anno$WTA.plate[i]
   files_samples[which(files == res[2])] <- sprintf("%s_L2", anno$WTA.plate[i])
 }
 files_samples_v2 <- append(files_samples[which(files_samples %in% anno$WTA.plate)], files_samples[which(files_samples %in% sprintf("%s_L2", anno$WTA.plate))])
 files_v2 <- append(files[which(files_samples %in% anno$WTA.plate)], files[which(files_samples %in% sprintf("%s_L2", anno$WTA.plate))])
-
-message(head(files_samples))
-print("---")
 
 ### TMP ### Remove 180201-6A_S7_L001 because it only has 4 SNPs
 files_samples_v2_to_remove <- grep(pattern = "180201_6A", ignore.case = T, value=T, x = files_samples_v2)
@@ -268,4 +263,8 @@ ASE <- readRDS(file=sprintf("%s/aggregated_results/ASE.bygene.rds", dirpath))
 
 ############################################################################################################
 #End of Script
+
+
+
+
 

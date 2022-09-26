@@ -20,7 +20,7 @@ rows <- union(rows1, rows2)
 anno_gen_1_2 <- anno[rows,]
 
 #import samples that were manually determined to be aneuploid
-hand_samples <- readRDS(sprintf("%s/aggregated_results/grouped_control_aneuploidies.rds", dirpath))
+hand_samples <- readRDS(sprintf("%s/grouped_control_aneuploidies.rds", datadir))
 
 #import gene and arm annotations
 geneRanges <- readRDS(sprintf("%s/geneRanges_Nikos.rds", datadir))
@@ -115,13 +115,19 @@ ctrl_AS_TPM$CN <- as.numeric(ctrl_AS_TPM$CN) - 1
 ctrl_AS_TPM_noX_no10 <- ctrl_AS_TPM[-which(ctrl_AS_TPM$chr %in% c("23", "10b")),] #remove these as they are not diploid CN state
 
 #Adjust ctrl_TPM for binding with AS value
-ctrl_TPM_noX_no10_2 <- copy(ctrl_TPM_noX_no10)
+ctrl_TPM_noX_no10_2 <- copy(ctrl_TPM_noX_no10) #copy the control (allele NON-specific) values from other matrix
 ctrl_TPM_noX_no10_2$hap <- "A&B" #add hap annotation for diploid control cells
 ctrl_TPM_noX_no10_2 <- ctrl_TPM_noX_no10_2[,c("ID", "CN", "chr", "hap", "vals")] #keep column order the same as AS_TPM
 ctrl_TPM_noX_no10_2$vals <- 2*ctrl_TPM_noX_no10_2$vals #to make the base CN = 2
 
 #bind all together
 ref_hap_spec_CN <- rbind(ctrl_AS_TPM, ctrl_TPM_noX_no10_2)
+
+#manually identified trisomies in control cells
+ctrl_tri12_cells <- c("181012_5E", "181012_5F", "181012_5H", "170208_A1", "170208_A2", "210720_7A", "170208_D1", "170208_D2")
+
+#remove trisomy 12s
+ref_hap_spec_CN <- ref_hap_spec_CN[-intersect(which(ref_hap_spec_CN$chr == "12"), which(ref_hap_spec_CN$ID %in% ctrl_tri12_cells)),]
 
 #save ref TPM values
 saveRDS(ref_hap_spec_CN, file = sprintf("%s/aggregated_results/ref_hap_spec_CN.rds", dirpath))
@@ -209,19 +215,23 @@ tri_AS_TPM_B <- get_vals_from_mat(samples_df=tri_samples, mat=AS_TPM_bychr$B)
 
 #Get AS_TPM from correct haplotypes
 mono_AS_TPM_AB <- cbind(mono_AS_TPM_A[,1:3], A = as.numeric(unlist(mono_AS_TPM_A[,4])), B = as.numeric(unlist(mono_AS_TPM_B[,4])))
-mono_AS_TPM <- cbind(mono_AS_TPM_AB[,1:3], aneuploid = rowMin(as.matrix(mono_AS_TPM_AB[,4:5])), normal = rowMax(as.matrix(mono_AS_TPM_AB[,4:5])))
+mono_AS_TPM <- cbind(mono_AS_TPM_AB[,1:3], aneuploid = rowMins(as.matrix(mono_AS_TPM_AB[,4:5])), normal = rowMaxs(as.matrix(mono_AS_TPM_AB[,4:5])))
 ctrl_AS_TPM_AB <- cbind(ctrl_AS_TPM_A[,1:3], aneuploid = as.numeric(unlist(ctrl_AS_TPM_A[,4])), normal = as.numeric(unlist(ctrl_AS_TPM_B[,4])))
 ctrl_AS_TPM_AB_noX_no10 <- ctrl_AS_TPM_AB[-which(ctrl_AS_TPM_AB$chr %in% c("23", "10b")),] #remove these as they are not diploid CN state
 #ctrl_AS_TPM <- rbind(cbind(ctrl_AS_TPM_AB[,1:3], vals = unlist(ctrl_AS_TPM_AB[,4])), cbind(ctrl_AS_TPM_AB[,1:3], vals = unlist(ctrl_AS_TPM_AB[,5])))
 #ctrl_AS_TPM_noX_no10 <- ctrl_AS_TPM[-which(ctrl_AS_TPM$chr %in% c("23", "10b")),] #remove these as they are not diploid CN state
 tri_AS_TPM_AB <- cbind(tri_AS_TPM_A[,1:3], A = as.numeric(unlist(tri_AS_TPM_A[,4])), B = as.numeric(unlist(tri_AS_TPM_B[,4])))
-tri_AS_TPM <- cbind(tri_AS_TPM_AB[,1:3], aneuploid = rowMax(as.matrix(tri_AS_TPM_AB[,4:5])), normal = rowMin(as.matrix(tri_AS_TPM_AB[,4:5])))
+tri_AS_TPM <- cbind(tri_AS_TPM_AB[,1:3], aneuploid = rowMaxs(as.matrix(tri_AS_TPM_AB[,4:5])), normal = rowMins(as.matrix(tri_AS_TPM_AB[,4:5])))
 
 #bind all together
 ref_AS_TPM <- rbind(mono_AS_TPM, ctrl_AS_TPM_AB_noX_no10, tri_AS_TPM)
 ref_AS_TPM$CN <- as.numeric(ref_AS_TPM$CN) - 1
 ref_AS_TPM_melt <- melt(ref_AS_TPM, measure.vars = c(colnames(ref_AS_TPM)[-c(1:3)]))
 
+#remove chr12 outliers
+#missegregated_chrs <- ref_AS_TPM_melt$ID[intersect(which(ref_AS_TPM_melt$chr == "12"), which(ref_AS_TPM_melt$value > 1.5))]
+#ref_AS_TPM_melt_2 <- ref_AS_TPM_melt[-which(ref_AS_TPM_melt$ID %in% missegregated_chrs),]
+
 #save ref TPM values
 saveRDS(ref_AS_TPM_melt, file = sprintf("%s/aggregated_results/ref_AS_TPM.rds", dirpath))
-
+saveRDS(ref_AS_TPM, file = sprintf("%s/aggregated_results/ref_AS_TPM_unmelt.rds", dirpath))

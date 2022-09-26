@@ -51,25 +51,27 @@ agg_by_tpm_inv_var <- function(genomic_region = 10000000, mat, anno_cols = 6) {
   setkey(mat, chr, start, end)
   
   #foverlaps mat with genomic coordinate bins
-  mat_bin <- foverlaps(chr_seq_all, mat, nomatch=NA) #
+  mat_bin <- foverlaps(chr_seq_all, mat, nomatch=NA) 
   
   #Relabel columns and make bin numeric
-  #setnames(mat_bin, old=c("start", "end", "i.start", "i.end"), new=c("bin_start", "bin_end", "gene_start", "gene_end"))
   setnames(mat_bin, old=c("start", "end", "i.start", "i.end"), new=c("gene_start", "gene_end", "bin_start", "bin_end"))
   mat_bin <- cbind(mat_bin[,c("chr", "bin", "bin_start", "bin_end", "gene_id", "gene_start", "gene_end", "width", "strand")], mat_bin[,-c("chr", "bin", "bin_start", "bin_end", "gene_id", "gene_start", "gene_end", "width", "strand")])
   
-  #get the inv variance of each row 
-  cols <- c(1:anno_cols)
+  #get the inv variance of each row #TODO: only get var over control cells?
   gene_inv_variance <- 1/rowVars(as.matrix(mat_bin[,..controlSampleIDs]), na.rm = T)
-  gene_inv_variance[is.na(gene_inv_variance)] <- 0
-  #gene_inv_variance[gene_inv_variance == Inf] <- 0
-  gene_inv_variance_noinf <- gene_inv_variance[-which(gene_inv_variance == Inf)]
-  gene_inv_variance[gene_inv_variance == Inf] <- quantile(probs = c(.999), gene_inv_variance_noinf)
-  
   
   #merge weights with mat for aggregation
   mat_w <- data.table(cbind(weight = gene_inv_variance, mat_bin))
-
+  mat_w$weight[is.na(mat_w$weight)] <- 0
+  
+  #remove chrX
+  mat_w_noX <- mat_w %>% filter(chr != "chrX")
+  
+  #address boundaries of variance calculations
+  gene_inv_variance_noinf <- mat_w_noX$weight[-which(mat_w_noX$weight == Inf)]
+  w_th <- quantile(probs = c(.95), gene_inv_variance_noinf)
+  mat_w$weight[mat_w$weight > w_th] <- w_th #cap weights at 95% quantile excluding chrX
+  
   #aggregate with mean weighted by inv variance
   cols <- c(1:(anno_cols+4))
   sum_cols <- colnames(mat_w[,-..cols])
@@ -151,16 +153,19 @@ agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6, simpleX =
     mat <- data.table(cbind(mat_arm[,c("gene_id", "arm", "start", "end", "width", "strand")], mat_arm[,-c("gene_id", "arm", "start", "end", "width", "strand")]))
     
     #get the inv variance of each row #TODO: only get var over control cells?
-    cols <- c(1:anno_cols)
     gene_inv_variance <- 1/rowVars(as.matrix(mat[,..controlSampleIDs]), na.rm = T)
-    gene_inv_variance[is.na(gene_inv_variance)] <- 0
-    #gene_inv_variance[gene_inv_variance == Inf] <- 0
-    gene_inv_variance_noinf <- gene_inv_variance[-which(gene_inv_variance == Inf)]
-    gene_inv_variance[gene_inv_variance == Inf] <- quantile(probs = c(.999), gene_inv_variance_noinf)
-    
     
     #merge weights with mat for aggregation
     mat_w <- data.table(cbind(weight = gene_inv_variance, mat))
+    mat_w$weight[is.na(mat_w$weight)] <- 0
+    
+    #remove chrX
+    mat_w_noX <- mat_w %>% filter(chr != "chrX")
+    
+    #address boundaries of variance calculations
+    gene_inv_variance_noinf <- mat_w_noX$weight[-which(mat_w_noX$weight == Inf)]
+    w_th <- quantile(probs = c(.95), gene_inv_variance_noinf)
+    mat_w$weight[mat_w$weight > w_th] <- w_th #cap weights at 95% quantile excluding chrX
     
     #aggregate with mean weighted by inv variance
     cols <- c(1:(anno_cols+1))
@@ -196,13 +201,18 @@ agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6, simpleX =
     #get the inv variance of each row #TODO: only get var over control cells?
     cols <- c(1:anno_cols)
     gene_inv_variance <- 1/rowVars(as.matrix(mat[,..controlSampleIDs]), na.rm = T)
-    gene_inv_variance[is.na(gene_inv_variance)] <- 0
-    #gene_inv_variance[gene_inv_variance == Inf] <- 0
-    gene_inv_variance_noinf <- gene_inv_variance[-which(gene_inv_variance == Inf)]
-    gene_inv_variance[gene_inv_variance == Inf] <- quantile(probs = c(.999), gene_inv_variance_noinf)
-    
+
     #merge weights with mat for aggregation
     mat_w <- data.table(cbind(weight = gene_inv_variance, mat))
+    mat_w$weight[is.na(mat_w$weight)] <- 0
+    
+    #remove chrX
+    mat_w_noX <- mat_w %>% filter(chr != "chrX")
+    
+    #address boundaries of variance calculations
+    gene_inv_variance_noinf <- mat_w_noX$weight[-which(mat_w_noX$weight == Inf)]
+    w_th <- quantile(probs = c(.95), gene_inv_variance_noinf)
+    mat_w$weight[mat_w$weight > w_th] <- w_th #cap weights at 95% quantile excluding chrX
 
     #aggregate with mean weighted by inv variance
     cols <- c(1:(anno_cols+1))
@@ -242,7 +252,6 @@ saveRDS(ASE_bychr, file=sprintf("%s/aggregated_results/ASE.inv_var.bychr.rds", d
 #use function to bin each 
 TPM_bychr <- agg_inv_var_byarm_or_chr(mat = TPM_normed, size = "chr")
 saveRDS(TPM_bychr, file=sprintf("%s/aggregated_results/TPM.inv_var.bychr.rds", dirpath))
-
 
 ####################################
 ### aggregate ASE and TPM by arm ###

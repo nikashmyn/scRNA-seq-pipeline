@@ -101,6 +101,10 @@ for (i in 1:length(files_samples_v2)) {
   }
 }
 
+#Save concatentated data
+saveRDS(TPM_all_files, sprintf("%s/aggregated_results/ASE.concatTPM.rds", dirpath))
+TPM_all_files <- readRDS(sprintf("%s/aggregated_results/ASE.concatTPM.rds", dirpath))
+
 #cast the long data frame by cell
 TPM_all_cells <- dcast(TPM_all_files, gene_id ~ cell, value.var = "TPM")
 TPM_all_cells[is.na(TPM_all_cells)] <- 0

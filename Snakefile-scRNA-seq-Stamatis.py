@@ -180,8 +180,8 @@ rule generate_genome_indexes:
         "STAR --genomeFastaFiles {input.in_fasta} --sjdbGTFfile {input.in_gtf} "
         "--runThreadN {threads} --runMode {params.runMode} --sjdbOverhang {params.overhang} "
         "--genomeDir {output.ref_dir} "
-        
-#Prep bam for RSEM post-processing
+       
+#create RSEM reference file
 rule prep_rsem:
     input:
         fasta = config["reference_unzip"],
@@ -334,7 +334,7 @@ rule index_RG_bams:
     shell:
         "samtools index {input.bam} "
 
-
+#Calculate coverage over allele specific heterozygous SNP sites with ASEReadCounter
 rule allele_specific_expression:
     input:
         bam_index = "{path}/{experiment}/VarCall_BAMs/{samples}.Aligned.sortedByCoord.split_r.RG.out.bam.bai",

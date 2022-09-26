@@ -87,13 +87,14 @@ fam_ids_reps <- as.numeric(rle(family_ids)$lengths)*(length(unique(TPM_bychr$chr
 
 chr_num <- str_remove(unique(TPM_bychr$chr), pattern = "chr")
 chr_num[chr_num == "X"] <- 23
+chr_num[chr_num == "10a"] <- 10.1; chr_num[chr_num == "10b"] <- 10.2;
 chr_num <- as.numeric(chr_num)
 chr_num <- unique(TPM_bychr$chr)
 
 #Prepare Visual Objects
-visual.data <- data.table(TPM = as.numeric(flatten(TPM_bychr[,..names])))
-visual.data$VAR_A <- as.numeric(flatten(VAR_A[,..names]))
-visual.data$VAR_B <- as.numeric(flatten(VAR_B[,..names]))
+visual.data <- data.table(TPM = as.numeric(unlist(flatten(TPM_bychr[,..names]))))
+visual.data$VAR_A <- as.numeric(unlist(flatten(VAR_A[,..names])))
+visual.data$VAR_B <- as.numeric(unlist(flatten(VAR_B[,..names])))
 visual.data$chr <- rep(unique(chr_num), length = length(visual.data$TPM))
 visual.data$cell <- rep(names, each=length(unique(chr_num))-length(exclude_chrs))
 visual.data$ids <- rep(ids, each=length(unique(chr_num))-length(exclude_chrs))
@@ -110,9 +111,9 @@ visual.data$MN_info <- rep(MN_info, each=length(unique(chr_num))-length(exclude_
 ######################
 
 #add pvals to visual data object
-visual.data$pval_loss <- as.numeric(flatten(pval_matrix_loss_bychr[,..names]))
-visual.data$pval_control <- as.numeric(flatten(pval_matrix_control_bychr[,..names]))
-visual.data$pval_gain <- as.numeric(flatten(pval_matrix_gain_bychr[,..names]))
+visual.data$pval_loss <- as.numeric(unlist(flatten(pval_matrix_loss_bychr[,..names])))
+visual.data$pval_control <- as.numeric(unlist(flatten(pval_matrix_control_bychr[,..names])))
+visual.data$pval_gain <- as.numeric(unlist(flatten(pval_matrix_gain_bychr[,..names])))
 
 #merge cell lineage data with possible events
 setkey(visual.data, "chr")
@@ -170,6 +171,7 @@ for(i in 1:length(MN_fam_rle$values)) {
 #Save visual.data2 storing all classification data
 saveRDS(visual.data2, file = sprintf("%s/aggregated_results/classification_data.rds", dirpath))
 
+
 #cast the data into table
 seg_table_TPM <- dcast(visual.data2, generation + family + family_ids + MN_Cell + MN_Sister + MN_info + event + rupt_time + chr ~ relationship, value.var = "TPM")[,c("A", "B", "c1", "c2")]
 colnames(seg_table_TPM) <- c("A_TPM", "B_TPM", "c1_TPM", "c2_TPM") 
@@ -179,7 +181,7 @@ seg_table_VAR_B <- dcast(visual.data2, generation + family + family_ids + MN_Cel
 colnames(seg_table_VAR_B) <- c("A_AlleleB", "B_AlleleB", "c1_AlleleB", "c2_AlleleB") 
 seg_table <- dcast(visual.data2, generation + family + family_ids + MN_Cell + MN_Sister + MN_info + event + rupt_time + chr ~ relationship, value.var = "state") #, id.vars = c("family", "chr"), measure.vars = c("state"))
 seg_table <- cbind(seg_table[,c("generation","family","family_ids","MN_Cell","MN_Sister","MN_info","event","rupt_time","chr")], cbind(seg_table_TPM, cbind(seg_table_VAR_A, cbind(seg_table_VAR_B, seg_table[,c("A", "B", "c1", "c2")]) )))
-write_csv(seg_table, file = sprintf("%s/aggregated_results/all_chr_profiles.csv", dirpath))
+write.csv(seg_table, file = sprintf("%s/aggregated_results/all_chr_profiles.csv", dirpath), row.names = F)
 
 #############################################
 ### Get information for cells with events ###
@@ -191,10 +193,10 @@ rows_to_remove3 <- c()
 for (i in 1:nrow(seg_table)) {if( length(setdiff(unique(seg_table[i,cols][!is.na(seg_table[i,cols])]), c("disomy"))) < 1 ){rows_to_remove3 <- append(rows_to_remove3, i)}}
 seg_table_allevents <- seg_table[-rows_to_remove3,]
 seg_table_diploid_events <- seg_table[rows_to_remove3,]
-write_csv(seg_table_allevents, file = sprintf("%s/aggregated_results/all_events.csv", dirpath))
-write_csv(seg_table_diploid_events, file = sprintf("%s/aggregated_results/diploid_events.csv", dirpath))
+write.csv(seg_table_allevents, file = sprintf("%s/aggregated_results/all_events.csv", dirpath), row.names = F)
+write.csv(seg_table_diploid_events, file = sprintf("%s/aggregated_results/diploid_events.csv", dirpath), row.names = F)
 
-#get cells that are completely diploid
+#Add back single row for families that are completely diploid
 rows_to_keep <- c()
 for (fam in unique(seg_table$family)) {
   cur_fam <- seg_table[which(seg_table$family == fam),]
@@ -207,8 +209,9 @@ for (fam in unique(seg_table$family)) {
 seg_table_diploid_families <- seg_table[rows_to_keep,]
 seg_table_diploid_families_red <- seg_table_diploid_families[which(seg_table_diploid_families$chr == "chr1"),]
 seg_table_diploid_families_red$chr <- "all chrs"
-write_csv(seg_table_diploid_families_red, file = sprintf("%s/aggregated_results/diploid_families.csv", dirpath))
+write.csv(seg_table_diploid_families_red, file = sprintf("%s/aggregated_results/diploid_families.csv", dirpath), row.names = F)
 
+#add all events plus place holder row for completely diploid families
 all_family_events_2 <- data.table(rbind(seg_table_allevents, seg_table_diploid_families_red))
 
 #reorder columns for easier analysis
@@ -459,4 +462,5 @@ all_family_events_2 <- all_family_events_2[,..ordered_cols]
 setkey(all_family_events_2, "generation", "family", "chr")
 
 #save event table
-write_csv(all_family_events_2, file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath))
+write.csv(all_family_events_2, file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath), row.names = F)
+all_family_events_2 <- read.csv(file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath))

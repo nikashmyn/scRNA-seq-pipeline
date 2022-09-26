@@ -83,89 +83,44 @@ adjust_by_inv_var <- function(mat, anno_cols = 6, w_mat = mat) {
 }
 
 
-###############################################################
-### "Global" Normalization: Cell-specific effect correction ###
-###############################################################
-
-global_normalization <- function(mat, anno_cols = 6) {
-   #Copy dataframe and remove anno columns
+adjust_by_inv_var_2 <- function(mat, anno_cols = 6) {
+   
+   #read in geneRanges
+   geneRanges <- readRDS(sprintf("%s/geneRanges_Nikos.rds", datadir))
+   
+   #Ensure that chr columns in character and sort mat
+   mat <- data.table(mat)
+   mat$chr <- as.character(mat$chr) #turn factor chrs to character chrs
+   setkey(mat, chr, start, end)
+   
+   #get the inv variance of each row #TODO: only get var over control cells?
    cols <- c(1:anno_cols)
-   dt2go <- copy(data.table(mat)[,-..cols])
-   log2go <- log2(dt2go)
-   log2go[log2go == -Inf] <- NA
+   gene_inv_variance <- 1/rowVars(as.matrix(mat[,..controlSampleIDs]), na.rm = T)
    
-   #<(log(TPM_i)>_genes - <<log(TPM_i)>_ctrl>_genes
-   cell_means <- colMeans(log2go, na.rm = T)
-   ctrl_means <- mean(colMeans(log2go[,..controlSampleIDs], na.rm = T), na.rm = T)
-   cell_TPM_diff <- 2^(cell_means - ctrl_means)
+   #merge weights with mat for aggregation
+   mat_w <- data.table(cbind(weight = gene_inv_variance, mat))
+   mat_w$weight[is.na(mat_w$weight)] <- 0
    
-   #scale each cell by differences in average TPM and add annotations
-   cell_TPM_diff_df <- data.table(t((replicate(nrow(dt2go), cell_TPM_diff))))
-   dt3go <- (dt2go / cell_TPM_diff_df)
-   mat_out <- cbind(mat[,..cols], dt3go)
+   #remove chrX
+   mat_w_noX <- mat_w %>% filter(chr != "chrX")
    
-   #return normed ratios
+   #address boundaries of variance calculations
+   gene_inv_variance_noinf <- mat_w_noX$weight[which(mat_w_noX$weight != Inf)]
+   w_th <- quantile(probs = c(.95), gene_inv_variance_noinf, na.rm = T)
+   mat_w$weight[mat_w$weight > w_th] <- w_th #cap weights at 95% quantile excluding chrX
+   
+   #aggregate with mean weighted by inv variance
+   cols <- c(1:(anno_cols+1))
+   sum_cols <- colnames(mat_w[,-..cols])
+   mat_w_cell <- data.table(mat_w %>% summarise_at(sum_cols, funs(weighted.mean(., weight, na.rm = T))))
+   
+   #adjust the input matrix by the adjustment factor determined from weighting mat
+   cols <- c(1:anno_cols)
+   adjustment_mat <- data.table(t((replicate(nrow(mat), unlist(mat_w_cell)))))
+   mat_adjusted <- (mat[,-..cols] / adjustment_mat)
+   mat_out <- cbind(mat[,..cols], mat_adjusted)
+   
    return(mat_out)
-}
-
-#Get the factors used to do global normalization 
-global_factors <- function(mat, anno_cols = 6) {
-   #Copy dataframe and remove anno columns
-   cols <- c(1:anno_cols)
-   dt2go <- copy(data.table(mat)[,-..cols])
-   log2go <- log2(dt2go)
-   log2go[log2go == -Inf] <- NA
-   
-   #<(log(TPM_i)>_genes - <<log(TPM_i)>_ctrl>_genes
-   cell_means <- colMeans(log2go, na.rm = T)
-   ctrl_means <- mean(colMeans(log2go[,..controlSampleIDs], na.rm = T), na.rm = T)
-   cell_TPM_diff <- 2^(cell_means - ctrl_means)
-   
-   #return normed ratios
-   return(cell_TPM_diff)
-}
-
-
-global_adjustment <- function(mat, anno_cols = 6) {
-   
-   #xi
-   cols <- c(1:anno_cols)
-   x <- copy(data.table(mat)[,-..cols])
-   lnx <- as.matrix(log2(x))
-   lnx[lnx == -Inf] <- NA
-   
-   #Ci
-   c <- rowMeans(data.table(mat)[,..controlSampleIDs])
-   lnc <- log2(c)
-   lnc[lnc == -Inf] <- NA
-   
-   #linear fit between lnx and lnc
-   model_mat <- c()
-   for(i in 1:ncol(lnx)){
-      model <- lm(lnx[,i] ~ lnc)$coefficients
-      model_mat <- rbind(model_mat, model)
-   }
-   
-   #change rownames to cell ids and colnames to slope and intercept
-   model_mat <- data.table(cbind(cell = colnames(lnx), model_mat))
-   setnames(model_mat, old = c("(Intercept)", "lnc"), new = c("intercept", "slope"))
-   
-   #change columns to numeric
-   changeCols <- c("intercept", "slope")
-   model_mat[,(changeCols):= lapply(.SD, as.numeric), .SDcols = changeCols] #converts all columns in "changeCols" to numeric for allele A
-   
-   out_mat <- c()
-   for(i in 1:ncol(lnx)){
-      adjusted_cell <- (lnx[,i] - model_mat$intercept[i]) / (model_mat$slope[i])
-      out_mat <- cbind(out_mat, adjusted_cell)
-   }
-   
-   colnames(out_mat) <- colnames(lnx)
-   out_mat_2 <- 2^out_mat
-   out <- data.table(cbind(mat[,..cols], out_mat_2))
-   
-   #return normed ratios
-   return(out)
 }
 
 ########################################################################

@@ -16,7 +16,6 @@ source(sprintf("%s/plots/TPM_ratio_func_of_gene_expr.R", scriptsdir))
 source(sprintf("%s/plots/plot_TPM_and_ASE_vis.R", scriptsdir))
 source(sprintf("%s/plots/plot_AS_TPM_ratio_on_reference.R", scriptsdir))
 
-
 ####################
 ### loading data ###
 ####################
@@ -46,7 +45,7 @@ controlSampleIDs <- readRDS( sprintf("%s/aggregated_results/controlSampleIDs.rds
 centromeres <- read_csv(sprintf("%s/centromeres.csv", datadir))
 
 #read in family events
-all_family_events <- read_csv(file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath))
+all_family_events <- read.csv(file = sprintf("%s/aggregated_results/all_family_events.csv", dirpath))
 
 #read in reference distributions
 ref_TPM <- readRDS(file = sprintf("%s/aggregated_results/ref_TPM.rds", dirpath))
@@ -86,8 +85,8 @@ foreach(i = c(1:length(samples_to_visualize))) %dopar% {
 
 
 #Make barcharts for each family
-setkey(anno, WTA.plate)
-families <- sort(table(anno_red[samples_to_visualize][Pairs != "NA" & Pairs != "mother"]$Pairs), decreasing = T)
+setkey(anno_red, WTA.plate)
+families <- sort(table(anno_red[which(anno_red$WTA.plate %in% samples_to_visualize),][Pairs != "NA" & Pairs != "mother"]$Pairs), decreasing = T)
 if ("" %in% names(families)) { families <- families[which(!names(families) == "")] }
 exclude_chrs <- c()
 
@@ -96,9 +95,9 @@ system(make_path)
 
 foreach(i = c(1:length(names(families)))) %dopar% {
   myfamily = names(families)[i]
-  myids <- anno[Pairs %in% myfamily]$WTA.plate
-  myids_name <- anno[Pairs %in% myfamily]$Cell_IDs
-  fam_id_name <- unique(anno$Family_IDs[which(anno$Pairs == myfamily)])
+  myids <- anno_red[Pairs %in% myfamily]$WTA.plate
+  myids_name <- anno_red[Pairs %in% myfamily]$Cell_IDs
+  fam_id_name <- unique(anno_red$Family_IDs[which(anno_red$Pairs == myfamily)])
   message(myfamily) 
   #plot Barcharts by family
   plot_barplots_of_AllelicAndExpBiasPerSamples(AS_TPM_bychr = AS_TPM_bychr, myfamily_file = fam_id_name, destDir = sprintf("%s/byfamily", destDir),
@@ -110,6 +109,7 @@ foreach(i = c(1:length(names(families)))) %dopar% {
 ############################################
 
 #Reduce anno list to relevant gen2 samples
+setkey(anno, WTA.plate)
 rows1 <- intersect(which(anno$key_pairs == "Gen2"), which(anno$exclusion == ""))
 rows2 <- intersect(which(anno$key_pairs == "Gen1"), which(anno$exclusion == ""))
 rows <- union(rows1, rows2)
@@ -134,7 +134,7 @@ for(i in 1:length(names(families))){
   myids_name <- anno[Pairs %in% myfamily]$Cell_IDs
   pdf(file = sprintf("%s/byfamily/%s.family.pdf", destDir, fam_id_name), width = 18, height = 12)
   #get events for this family
-  columns_to_show <- c("generation", "family_ids", "MN_Cell", "MN_Sister", "rupt_time", "chr", "A", "B", "c1", "c2", "CN_pattern", "MN_hap", "MNhap_CN_pattern", "CN_state")
+  columns_to_show <- c("generation", "family_ids", "A_id", "B_id", "rupt_time", "chr", "A_TPM", "B_TPM", "c1_TPM", "c2_TPM", "MN_hap", "MNhap_state")
   possible_events_myfam <- all_family_events[which(all_family_events$family == myfamily),columns_to_show]
   #plot table of possible events
   if (nrow(possible_events_myfam) >= 1) {grid.table(possible_events_myfam)}
@@ -161,8 +161,8 @@ for(i in 1:length(names(families))){
         for(myid in myids[myids %in% samples_to_visualize]) {
           myid_file <- myids_name[which(myids == myid)]
           #Plot raw data visuals function
-          files <- rbind(files, plot_TPM_and_ASE(myfamily_file = myfamily_file, myid_file = myid_file, myid = myid, chr = chr, TPM = TPM_bybin, ASE = AS_TPM_bybin, destDir = destDir, controlSampleIDs = controlSampleIDs, save.rds = T, doPlot = F))
-          files2 <- rbind(files2, CumulativeTPM_and_ratioTPM_plots(adt = TPM, geneRanges = geneRanges, controlSampleIDs = controlSampleIDs, myfamily_file = myfamily_file, myid_file = myid_file, myid = myid, chr = chr, destDir = destDir, binsize = 10, save.rds = T))
+          files <- rbind(files, plot_TPM_and_ASE(myfamily_file = myfamily_file, myid_file = myid_file, myid = myid, chr = chr, TPM = TPM_bybin, ASE = AS_TPM_bybin, destDir = sprintf("%s/individual_plots", destDir), controlSampleIDs = controlSampleIDs, save.rds = T, doPlot = F))
+          files2 <- rbind(files2, CumulativeTPM_and_ratioTPM_plots(adt = TPM, geneRanges = geneRanges, controlSampleIDs = controlSampleIDs, myfamily_file = myfamily_file, myid_file = myid_file, myid = myid, chr = chr, destDir = sprintf("%s/individual_plots", destDir), binsize = 10, save.rds = T))
         }
         #TPMratio by bin and var by bin raw plots
         TPM_vis <- lapply(files$TPM_file , function(x){readRDS(x)} )

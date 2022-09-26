@@ -23,7 +23,7 @@ anno_gen_1_2 <- anno[rows,]
 MN_Cells <- anno_gen_1_2$WTA.plate[which(anno_gen_1_2$Sister1 == 1)]
 
 #import samples that were manually determined to be aneuploid
-hand_samples <- readRDS(sprintf("%s/aggregated_results/grouped_control_aneuploidies.rds", dirpath))
+hand_samples <- readRDS(sprintf("%s/grouped_control_aneuploidies.rds", datadir))
 
 #import gene and arm annotations
 geneRanges <- readRDS(sprintf("%s/geneRanges_Nikos.rds", datadir))
@@ -153,7 +153,7 @@ AS_TPM_byarm_ctrl_pvals_arm_spec$A <- data.table()
 AS_TPM_byarm_ctrl_pvals_arm_spec$B <- data.table()
 for(i in 1:length(unique(ctrl_AS_TPM_byarm_A$chr))){
   chr <- unique(ctrl_AS_TPM_byarm_A$chr)[i]
-  row <- which(AS_TPM_byarm$A$chr == chr)
+  row <- which(AS_TPM_byarm$A$arm == chr)
   tmp_pvals_A <- run_ztest_for_matrix(mat=AS_TPM_byarm$A[row,], pop_distr = ctrl_AS_TPM_byarm_A$vals[ctrl_AS_TPM_byarm_A$chr == chr], anno_cols = 1)
   AS_TPM_byarm_ctrl_pvals_arm_spec$A <- rbind(AS_TPM_byarm_ctrl_pvals_arm_spec$A, tmp_pvals_A)
   tmp_pvals_B <- run_ztest_for_matrix(mat=AS_TPM_byarm$B[row,], pop_distr = ctrl_AS_TPM_byarm_B$vals[ctrl_AS_TPM_byarm_B$chr == chr], anno_cols = 1)

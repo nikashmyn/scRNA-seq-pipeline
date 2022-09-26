@@ -18,6 +18,8 @@ message("Loading data...")
 
 #Read in results of manual review
 all_family_events_results <- data.table(read.csv( sprintf("%s/work_in_progress/manual_review_results.csv", datadir)))
+all_family_events_results$chr[all_family_events_results$chr == 'X'] <- 23
+all_family_events_results$chr <- as.numeric(all_family_events_results$chr)
 
 #load cell annotations
 anno <- data.table(read.csv( sprintf("%s/work_in_progress/annotation_list.csv", datadir)))
@@ -36,11 +38,11 @@ anno_gen_1_2 <- anno[rows,]
 MN_Cell_n_chr_1 <- all_family_events_results[which(all_family_events_results$Interpretation %in% c("defect", "no defect")),c("family", "chr", "Interpretation", "generation")]
 MN_Cell_n_chr_1$chr[-which(MN_Cell_n_chr_1$chr %in% c("10.1", "10.2"))] <- round(MN_Cell_n_chr_1$chr[-which(MN_Cell_n_chr_1$chr %in% c("10.1", "10.2"))])
 MN_Cell_n_chr_1$chr <- as.character(MN_Cell_n_chr_1$chr)
-MN_Cell_n_chr_2 <- data.table(anno_gen_1_2[which(anno_gen_1_2$Sister1 == 1),c("WTA.plate", "chr_of_interest", "Pairs")])
+MN_Cell_n_chr_2 <- data.table(anno_gen_1_2[which(anno_gen_1_2$Sister1 == 1),c("WTA.plate", "chr_of_interest", "Family_IDs")])
 MN_Cell_n_chr_2$chr_of_interest <- str_remove(MN_Cell_n_chr_2$chr_of_interest, "chr")
 MN_Cell_n_chr_2$chr_of_interest[MN_Cell_n_chr_2$chr_of_interest == "X"] <- 23
 MN_Cell_n_chr_2$chr_of_interest <- as.character(MN_Cell_n_chr_2$chr_of_interest)
-setnames(MN_Cell_n_chr_2, old = c("chr_of_interest", "Pairs"), new = c("chr", "family"))
+setnames(MN_Cell_n_chr_2, old = c("chr_of_interest", "Family_IDs"), new = c("chr", "family"))
 setkey(MN_Cell_n_chr_1, "chr", "family")
 setkey(MN_Cell_n_chr_2, "chr", "family")
 MN_Cell_n_chr_3 <- merge(MN_Cell_n_chr_1, MN_Cell_n_chr_2, all.x = T)
@@ -68,28 +70,28 @@ AS_TPM_bychr <- readRDS(file=sprintf("%s/aggregated_results/AS-TPM.inv_var.bychr
 ### Curated reference distr ###
 ###############################
 
-#main data to be plotted 
-boxplots.vals <- cbind(ref_TPM[,c("vals", "CN")], color = ref_TPM$CN)
-setnames(boxplots.vals, old = c("vals", "CN"), new = c("TPM", "Group"))
-boxplots.vals$Group[boxplots.vals$Group == 1] <- "loss"; boxplots.vals$Group[boxplots.vals$Group == 2] <- "control"; boxplots.vals$Group[boxplots.vals$Group == 3] <- "gain";
-boxplots.vals$TPM <- as.numeric(boxplots.vals$TPM)
-boxplots.vals$Group <- as.factor(boxplots.vals$Group)
-
-#Plot the boxplots and strip plots
-boxplot.visual <- ggplot() + 
-  #change theme
-  theme_bw() + 
-  theme(aspect.ratio = 1/4, text=element_text(size=14), axis.text = element_text(color="black"), axis.title = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  #MN experimental samples 
-  geom_boxplot(data = visual.data.results.all, mapping = aes(x = state, y = TPM, alpha = .5), outlier.alpha = 0)  +
-  #selected samples
-  geom_boxplot(data = boxplots.vals, mapping = aes(x = Group, y = TPM, alpha = .5), outlier.alpha = 0)  +
-  #all samples
-  ylim(c(.25,1.75)) + scale_x_discrete(limits = c("low", "loss", "monosomy", "intermediate_12", "control",  "disomy", "intermediate_32", "gain", "trisomy", "high"), labels=c("low", "ref monosomy", "monosomy", "intermediate_12", "control",  "disomy", "intermediate_32", "ref trisomy", "trisomy", "high")) +
-  labs(x = "Group", y = "TPM Ratio", title = sprintf("TPM Ratio Distribution"))
-
-ggsave(plot = boxplot.visual, filename = "Global_Classifications.pdf", path = sprintf("%s/visual_results/summary_visuals", dirpath), device = "pdf", width = 15, height = 4, dpi = 300, units = "in")
+##main data to be plotted 
+#boxplots.vals <- cbind(ref_TPM[,c("vals", "CN")], color = ref_TPM$CN)
+#setnames(boxplots.vals, old = c("vals", "CN"), new = c("TPM", "Group"))
+#boxplots.vals$Group[boxplots.vals$Group == 1] <- "loss"; boxplots.vals$Group[boxplots.vals$Group == 2] <- "control"; boxplots.vals$Group[boxplots.vals$Group == 3] <- "gain";
+#boxplots.vals$TPM <- as.numeric(boxplots.vals$TPM)
+#boxplots.vals$Group <- as.factor(boxplots.vals$Group)
+#
+##Plot the boxplots and strip plots
+#boxplot.visual <- ggplot() + 
+#  #change theme
+#  theme_bw() + 
+#  theme(aspect.ratio = 1/4, text=element_text(size=14), axis.text = element_text(color="black"), axis.title = element_blank(),
+#        panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+#  #MN experimental samples 
+#  geom_boxplot(data = visual.data.results.all, mapping = aes(x = state, y = TPM, alpha = .5), outlier.alpha = 0)  +
+#  #selected samples
+#  geom_boxplot(data = boxplots.vals, mapping = aes(x = Group, y = TPM, alpha = .5), outlier.alpha = 0)  +
+#  #all samples
+#  ylim(c(.25,1.75)) + scale_x_discrete(limits = c("low", "loss", "monosomy", "intermediate_12", "control",  "disomy", "intermediate_32", "gain", "trisomy", "high"), labels=c("low", "ref monosomy", "monosomy", "intermediate_12", "control",  "disomy", "intermediate_32", "ref trisomy", "trisomy", "high")) +
+#  labs(x = "Group", y = "TPM Ratio", title = sprintf("TPM Ratio Distribution"))
+#
+#ggsave(plot = boxplot.visual, filename = "Global_Classifications.pdf", path = sprintf("%s/visual_results/summary_visuals", dirpath), device = "pdf", width = 15, height = 4, dpi = 300, units = "in")
 
 ##################################
 ### Hap Spec Curated ref distr ###
@@ -178,7 +180,7 @@ melted_MN_TPM_chr_spec_2 <- merge(melted_MN_TPM_chr_spec, anno_m, all.x = T)
 melted_MN_TPM_chr_spec_2$chr <- as.character(as.numeric(melted_MN_TPM_chr_spec_2$chr))
 
 #get MN hap from all family events
-haplotype_info <- all_family_events_results[,c("family", "chr", "MN_hap", "generation", "DNA_CN_pattern", "Interpretation", "rupt_time")]
+haplotype_info <- all_family_events_results[,c("family", "chr", "MN_hap", "generation", "MNhap_DNA_CN_pattern", "Interpretation", "rupt_time")]
 #haplotype_info$MN_hap[is.na(haplotype_info$MN_hap)] <- "A" #If we can determine what the haplotype is we will just show A
 haplotype_info$chr[is.na(haplotype_info$chr)] <- 1 #If we can determine is the chr of interest we record none
 haplotype_info$chr[-which(haplotype_info$chr %in% c(10.1, 10.2))] <- round(haplotype_info$chr[-which(haplotype_info$chr %in% c(10.1, 10.2))]) #we round the chrs' # (not 10) to 1 digit
@@ -189,10 +191,10 @@ melted_MN_TPM_chr_spec_3 <- merge(melted_MN_TPM_chr_spec_2, haplotype_info)
 melted_MN_TPM_chr_spec_4 <- melted_MN_TPM_chr_spec_3[which(melted_MN_TPM_chr_spec_3$hap == melted_MN_TPM_chr_spec_3$MN_hap),]
 
 #Add base CN state annotation
-DNA_CN_patterns_labels <- data.table(t(data.frame(c("2 1", "Gen2", 1),c("2 1 2", "Gen2", 1),c("2 1 2 2", "Gen2", 1),c("2 2", "Gen1", 1),c("2 2", "Gen2", 2),c("2 2 2 2 | 2 1 2 2", "Gen2", "arm"),c("3 1", "Gen1", 2),c("3 1 | 2 2", "Gen2", "arm"),c("3 2 1", "Gen2", 2),c("3 2 1 1", "Gen2", 2),c("3 2 1 1 | 2 2 1 2", "Gen2", "arm"),c("3 3", "Gen1", 2),c("3 3 3 3 | 2 1 2 2", "Gen2", "arm"),c("3 2", "Gen2", 2),c("3 2 1 1 | 2 2 2 1", "Gen2", "arm"),c("3 2 | 2 2", "Gen2", "arm"),c("3 2 3 3", "Gen2", 2))))
-colnames(DNA_CN_patterns_labels) <- c("DNA_CN_pattern", "generation", "DNA_CN_base");
-setkey(DNA_CN_patterns_labels, "DNA_CN_pattern", "generation")
-setkey(melted_MN_TPM_chr_spec_4, "DNA_CN_pattern", "generation")
+DNA_CN_patterns_labels <- data.table(t(data.frame(c("1 0", "Gen2", 1),c("1 0 1", "Gen2", 1),c("1 0 1 1", "Gen2", 1),c("1 1", "Gen1", 1),c("1 1", "Gen2", 2),c("1 1 1 1 | 1 0 1 1", "Gen2", "arm"),c("2 0", "Gen1", 2),c("2 0 | 1 1", "Gen2", "arm"),c("2 1 0", "Gen2", 2),c("2 1 0 0", "Gen2", 2),c("2 1 0 0 | 1 1 0 1", "Gen2", "arm"),c("2 2", "Gen1", 2),c("2 2 2 2 | 1 0 1 1", "Gen2", "arm"),c("2 1", "Gen2", 2),c("2 1 0 0 | 1 1 1 0", "Gen2", "arm"),c("2 1 | 1 1", "Gen2", "arm"),c("2 1 2 2", "Gen2", 2), c("1 1 | 2 1", "Gen2", "arm"), c("1 2", "Gen2", 2))))
+colnames(DNA_CN_patterns_labels) <- c("MNhap_DNA_CN_pattern", "generation", "DNA_CN_base");
+setkey(DNA_CN_patterns_labels, "MNhap_DNA_CN_pattern", "generation")
+setkey(melted_MN_TPM_chr_spec_4, "MNhap_DNA_CN_pattern", "generation")
 melted_MN_TPM_chr_spec_5 <- merge(melted_MN_TPM_chr_spec_4, DNA_CN_patterns_labels, all.x = T)
 
 #remove melted_MN_TPM_chr_spec_5 entries from melted_MN_TPM
@@ -318,18 +320,18 @@ melted_MN_TPM_chr_spec_5_gen2$rupt_time[which(melted_MN_TPM_chr_spec_5_gen2$rupt
 
 plot_g2_summary <- function(rt) {
   ggplot() + 
-      theme_bw() + 
-      theme(aspect.ratio = 1/length(unique(melted_MN_TPM_chr_spec_5_gen2[which(melted_MN_TPM_chr_spec_5_gen2$rupt_time == rt)]$chr)), 
-            text=element_text(size=14), axis.text = element_text(color="black"), axis.title = element_blank(),
-            panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position="none") +
-      geom_crossbar(data = hap_spec_CI_2, mapping = aes(x = chr, y = median, ymin = lower, ymax = upper, group = interaction(chr, hap)), width=.35, position=position_dodge(.6), fill = "grey90", color="grey60")  +
-      geom_crossbar(data = control_CI_2, mapping = aes(x = chr, y = median, ymin = lower, ymax = upper), width=.5, fill = "grey90", color="grey60")  +
-      geom_jitter(data = melted_MN_TPM_chr_spec_5_gen2[which(melted_MN_TPM_chr_spec_5_gen2$rupt_time == rt)], mapping = aes(x = as.character(chr), y = value, group = interaction(chr, hap), fill=Interpretation, shape = DNA_CN_base), position=position_jitterdodge(jitter.width=.2), size = 2.5) + 
-      scale_x_discrete(limits = as.character(intersect(c(1:9, 10.1, 10.2, 11:23), melted_MN_TPM_chr_spec_5_gen2$chr[which(melted_MN_TPM_chr_spec_5_gen2$rupt_time == rt)]))) +  
-      scale_y_continuous(limits = c(0,2.5)) +
-      scale_shape_manual(values=c(21,24,22)) +
-      scale_fill_manual(values = c("defect" = "blue", "no defect" = "red"), na.value=NA, guide="none") +
-      labs(x = "Group", y = "TPM Ratio") #, title = rt
+    theme_bw() + 
+    theme(aspect.ratio = 1/length(unique(melted_MN_TPM_chr_spec_5_gen2[which(melted_MN_TPM_chr_spec_5_gen2$rupt_time == rt)]$chr)), 
+          text=element_text(size=14), axis.text = element_text(color="black"), axis.title = element_blank(),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position="none") +
+    geom_crossbar(data = hap_spec_CI_2, mapping = aes(x = chr, y = median, ymin = lower, ymax = upper, group = interaction(chr, hap)), width=.35, position=position_dodge(.6), fill = "grey90", color="grey60")  +
+    geom_crossbar(data = control_CI_2, mapping = aes(x = chr, y = median, ymin = lower, ymax = upper), width=.5, fill = "grey90", color="grey60")  +
+    geom_jitter(data = melted_MN_TPM_chr_spec_5_gen2[which(melted_MN_TPM_chr_spec_5_gen2$rupt_time == rt)], mapping = aes(x = as.character(chr), y = value, group = interaction(chr, hap), fill=Interpretation, shape = DNA_CN_base), position=position_jitterdodge(jitter.width=.2), size = 2.5) + 
+    scale_x_discrete(limits = as.character(intersect(c(1:9, 10.1, 10.2, 11:23), melted_MN_TPM_chr_spec_5_gen2$chr[which(melted_MN_TPM_chr_spec_5_gen2$rupt_time == rt)]))) +  
+    scale_y_continuous(limits = c(0,2.5)) +
+    scale_shape_manual(values=c(21,24,22)) +
+    scale_fill_manual(values = c("defect" = "blue", "no defect" = "red"), na.value=NA, guide="none") +
+    labs(x = "Group", y = "TPM Ratio") #, title = rt
 }
 
 manual_order_rts <- c("intact", "G1", "S/G2")
@@ -347,11 +349,11 @@ dev.off()
 
 #Plot barchart of gen2 defect
 gen2_barchart <- ggplot(melted_MN_TPM_chr_spec_5_gen2, aes(x = as.character(melted_MN_TPM_chr_spec_5_gen2$chr), fill = Interpretation)) + 
-                   scale_x_discrete(limits=as.character(c(1,2,4:9,10.2,11:13,23))) +
-                   scale_fill_grey() + theme_classic() +
-                   labs(x = "Chromosome", y = "Number of MN events") +
-                   geom_bar()
-  
+  scale_x_discrete(limits=as.character(c(1,2,4:9,10.2,11:13,23))) +
+  scale_fill_grey() + theme_classic() +
+  labs(x = "Chromosome", y = "Number of MN events") +
+  geom_bar()
+
 ggsave(plot = gen2_barchart, filename = "gen2_defect_frequency.pdf", path = sprintf("%s/visual_results/summary_visuals", dirpath), device = "pdf")
 
 all_cells_barchart <- ggplot(melted_MN_TPM_chr_spec_5, aes(x = as.character(melted_MN_TPM_chr_spec_5$chr))) + 
@@ -367,8 +369,8 @@ ggsave(plot = all_cells_barchart, filename = "MN_event_frequency.pdf", path = sp
 ###################################################
 
 events_summary <- all_family_events_results %>% 
-                    select(generation, rupt_time, Interpretation, family_ids) %>% 
-                      filter(Interpretation %in% c("defect", "no defect"))
+  select(generation, rupt_time, Interpretation, family_ids) %>% 
+  filter(Interpretation %in% c("defect", "no defect"))
 
 #Combine G1 and early NE defect
 events_summary$rupt_time[events_summary$rupt_time %in% c("early NE defect", "G1")] <- "Early/G1"
@@ -389,7 +391,7 @@ gen2_rupt_time <- ggplot(data = events_summary_g2, mapping = aes(x = rupt_time, 
   scale_x_discrete(limits=as.character(c("intact", "Early/G1", "S/G2"))) +
   scale_fill_grey() + theme_classic() +
   labs(x = "Rupture Timing", y = "Number of MN events")
-  
+
 
 
 

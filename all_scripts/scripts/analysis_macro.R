@@ -21,10 +21,10 @@ experiments <- args[4:length(args)]
 ### Source Packages ###
 #######################
 
-library(tidyverse)  # data manipulation
-library(cluster)    # clustering algorithms
-library(factoextra) # clustering algorithms & visualization
-library(reshape)
+require(tidyverse)  # data manipulation
+require(cluster)    # clustering algorithms
+require(factoextra) # clustering algorithms & visualization
+require(reshape)
 require(data.table)
 require(gtools)
 require(readxl)
@@ -36,6 +36,7 @@ require(dplyr)
 require(ggthemes)
 require(rlang)
 require(stringr)
+require(readr)
 
 ########################################
 ### Input Desired script Directories ###
@@ -74,7 +75,7 @@ source( sprintf('%s/scripts/pval_calculations_2.R', scriptsdir) )
 
 #Automatically call abnormal CN families and global summary 
 message("Analyzing results")
-source( sprintf('%s/scripts/automated_analysis_3.R', scriptsdir) )
+source( sprintf('%s/scripts/automated_analysis_4.R', scriptsdir) )
 
 #Generate Visuals
 message("Creating individual visuals")
