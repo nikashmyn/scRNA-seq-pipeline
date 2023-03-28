@@ -90,6 +90,15 @@ new_anno <- merge(anno_QC, QC_anno, by="WTA.plate")
 #save new anno list with of all processed samples with QC information.
 write.csv(new_anno, sprintf("%s/aggregated_results/analysis_list.csv", dirpath))
 
+##################################################
+### Control Samples Collection for Annotations ###
+##################################################
+
+#Get control samples from all experiments. Largest cohort of samples 
+controlSampleIDs <- anno[ (key_pairs == "c1" | key_pairs == "c2" | key_pairs == "c3")]$WTA.plate
+controlSampleIDs <- controlSampleIDs[ which( controlSampleIDs %in% all_QC$id[ which(all_QC$th5 > 6000)] ) ]
+saveRDS(controlSampleIDs, sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
+write.csv(controlSampleIDs, file=sprintf("%s/aggregated_results/controlSampleIDs.csv", dirpath), row.names = F)
 
 
 

@@ -99,7 +99,7 @@ agg_by_tpm_inv_var <- function(genomic_region = 10000000, mat, anno_cols = 6) {
 
 #use function to bin each 
 ASE_bybin <- list()
-ASE_bybin$AF <- agg_by_tpm_inv_var(mat = ASE$AF, genomic_region = 20000000)
+ASE_bybin$AF <- agg_by_tpm_inv_var(mat = ASE$AF, genomic_region = 10000000)
 
 saveRDS(ASE_bybin, file=sprintf("%s/aggregated_results/ASE.inv_var.bybin.rds", dirpath))
 
@@ -108,7 +108,7 @@ saveRDS(ASE_bybin, file=sprintf("%s/aggregated_results/ASE.inv_var.bybin.rds", d
 ############################################
 
 #use function to bin each 
-TPM_bybin <- agg_by_tpm_inv_var(mat = TPM_normed, genomic_region = 20000000)
+TPM_bybin <- agg_by_tpm_inv_var(mat = TPM_normed, genomic_region = 10000000)
 
 saveRDS(TPM_bybin, file=sprintf("%s/aggregated_results/TPM.inv_var.bybin.rds", dirpath))
 
@@ -198,7 +198,7 @@ agg_inv_var_byarm_or_chr <- function(mat, size = "chr", anno_cols = 6, simpleX =
     
     message("aggregating matrix over chrs based on variance")
     
-    #get the inv variance of each row #TODO: only get var over control cells?
+    #get the inv variance of each row 
     cols <- c(1:anno_cols)
     gene_inv_variance <- 1/rowVars(as.matrix(mat[,..controlSampleIDs]), na.rm = T)
 
