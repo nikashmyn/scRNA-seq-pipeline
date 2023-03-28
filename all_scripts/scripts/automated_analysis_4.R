@@ -159,7 +159,7 @@ possible_data2 <- visual.data[,c("chr", "relationship", "cell", "ids", "family",
 
 #set alpha values
 alpha <- .05 #normal alpha for trisomy and disomy as those distributions as samples size is 1
-alpha_bonf <- .05/length(unique(visual.data$chr)) #Bonferroni corrected pval (due to 20 chrs)
+alpha_bonf <- .05/(length(unique(visual.data$chr))*2) #Bonferroni corrected pval (due to 45 homologs)
 
 #get state classifications for allele A
 gain_table_A <- possible_data2 %>% filter(chr != "chrX") %>% filter(hapA_pval_CN1 < alpha_bonf) %>% filter(VAR_A > 1) %>% bind_cols(., state_A = rep("gain", nrow(.)))

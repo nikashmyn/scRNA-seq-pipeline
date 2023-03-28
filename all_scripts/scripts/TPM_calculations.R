@@ -145,22 +145,6 @@ saveRDS(TPM, file=sprintf("%s/aggregated_results/raw_TPM.rds", dirpath))
 write.csv(TPM, file=sprintf("%s/aggregated_results/raw_TPM.csv", dirpath), row.names = F)
 #TPM <- readRDS(file=sprintf("%s/aggregated_results/raw_TPM.rds", dirpath))
 
-##################################################
-### Control Samples Collection for Annotations ###
-##################################################
-
-#Get control samples from all experiments. Largest cohort of samples 
-controlSampleIDs <- anno[ (key_pairs == "c1" | key_pairs == "c2" | key_pairs == "c3")]$WTA.plate
-controlSampleIDs <- controlSampleIDs[controlSampleIDs %in% colnames(TPM)]
-controlSampleIDs <- controlSampleIDs[ which( controlSampleIDs %in% all_QC$id[ which(all_QC$th5 > 6000)] ) ]
-saveRDS(controlSampleIDs, sprintf("%s/aggregated_results/controlSampleIDs.rds", dirpath))
-write.csv(controlSampleIDs, file=sprintf("%s/aggregated_results/controlSampleIDs.csv", dirpath), row.names = F)
-
-#save just the control cell TPM for 10x analysis
-#cols <- c(colnames(TPM_3)[1:6], controlSampleIDs)
-#control_TPM <- TPM_3[,..cols]
-#write.csv(control_TPM, file=sprintf("%s/aggregated_results/control_TPM.csv", dirpath), col_names = T )
-
 #################################
 ### Remove mono-allelic genes ###
 #################################

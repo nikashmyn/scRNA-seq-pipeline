@@ -90,30 +90,37 @@ families <- sort(table(anno_red[which(anno_red$WTA.plate %in% samples_to_visuali
 if ("" %in% names(families)) { families <- families[which(!names(families) == "")] }
 exclude_chrs <- c()
 
-make_path <- sprintf("mkdir -p %s/byfamily/", destDir)
-system(make_path)
-
-foreach(i = c(1:length(names(families)))) %dopar% {
-  myfamily = names(families)[i]
-  myids <- anno_red[Pairs %in% myfamily]$WTA.plate
-  myids_name <- anno_red[Pairs %in% myfamily]$Cell_IDs
-  fam_id_name <- unique(anno_red$Family_IDs[which(anno_red$Pairs == myfamily)])
-  message(myfamily) 
-  #plot Barcharts by family
-  plot_barplots_of_AllelicAndExpBiasPerSamples(AS_TPM_bychr = AS_TPM_bychr, myfamily_file = fam_id_name, destDir = sprintf("%s/byfamily", destDir),
-                                                    ids = myids, name_ids = myids_name, chr = "", plotAxisText = F, return_plot = T, save_plot = T)
-}
-
-############################################
-### Run Family Visual Report in Parallel ###
-############################################
-
-#Reduce anno list to relevant gen2 samples
+#Reduce anno list to relevant gen1/gen2 samples
 setkey(anno, WTA.plate)
 rows1 <- intersect(which(anno$key_pairs == "Gen2"), which(anno$exclusion == ""))
 rows2 <- intersect(which(anno$key_pairs == "Gen1"), which(anno$exclusion == ""))
 rows <- union(rows1, rows2)
 anno_gen_1_2 <- anno[rows,]
+
+#make list of all experimental MN families
+MN_families <- data.table(anno_gen_1_2[which(anno_gen_1_2$Sister1 == 1),c("WTA.plate", "chr_of_interest", "Family_IDs", "Pairs")])
+MN_families$chr_of_interest <- str_remove(MN_families$chr_of_interest, "chr")
+MN_families$chr_of_interest[MN_families$chr_of_interest == "X"] <- 23
+MN_families$chr_of_interest <- as.character(MN_families$chr_of_interest)
+
+make_path <- sprintf("mkdir -p %s/byfamily/", destDir)
+system(make_path)
+
+foreach(i = c(1:length(MN_families$Pairs))) %dopar% {
+  myfamily = MN_families$Pairs[i]
+  myids <- anno_red[Pairs %in% myfamily]$WTA.plate
+  myids_name <- anno_red[Pairs %in% myfamily]$Cell_IDs
+  fam_id_name <- unique(anno_red$Family_IDs[which(anno_red$Pairs == myfamily)])
+  fam_relation <- anno_red[Pairs %in% myfamily]$Relationship
+  message(myfamily) 
+  #plot Barcharts by family
+  plot_barplots_of_AllelicAndExpBiasPerSamples(AS_TPM_bychr = AS_TPM_bychr, myfamily_file = fam_id_name, destDir = sprintf("%s/byfamily", destDir),
+                                                    ids = myids, name_ids = myids_name, family_relationship = fam_relation, chr = "", plotAxisText = F, return_plot = T, save_plot = T)
+}
+
+############################################
+### Run Family Visual Report in Parallel ###
+############################################
 
 #extract family information
 setkey(anno_gen_1_2, WTA.plate)
@@ -124,9 +131,9 @@ make_path <- sprintf("mkdir -p %s/byfamily/", destDir)
 system(make_path)
 
 #Make all cell summary read out by family
-#foreach(i = c(1:length(names(families)))) %dopar% { #if not all print its because I start at 10 when last ran
-for(i in 1:length(names(families))){
-  myfamily = names(families)[i]
+#foreach(i = c(1:length(names(families)))) %dopar% { 
+for(i in 1:length(MN_families$Pairs)){
+  myfamily = MN_families$Pairs[i]
   myfamily_file1 = str_remove(myfamily, fixed("(")); myfamily_file = str_remove(myfamily_file1, fixed(")"))
   fam_id_name <- unique(anno$Family_IDs[which(anno$Pairs == myfamily)])
   message(myfamily_file)
